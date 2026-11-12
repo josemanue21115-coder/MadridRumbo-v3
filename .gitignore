@@ -1,0 +1,43 @@
+
+# Visual Studio Code y sistema
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Credenciales y variables de entorno
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Output, ChromaDB y archivos generados
+output/
+chroma/
+embeddings.json
+rag.log
+*.log
+
+# Bases de datos locales
+*.db
+*.sqlite
+*.sqlite3
+
+# Archivos de prueba temporales
+prueba_*.py
