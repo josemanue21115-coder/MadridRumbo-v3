@@ -8,7 +8,7 @@
 - [x] T2. Añadir primero pruebas de los formatos de datos; después, crear `src/api/esquemas.py` con pregunta, respuesta, aprobación y mensaje. (RF-4, RF-5, RF-10, RF-11)
       Hecho cuando: `python -m pytest tests/test_api_esquemas.py` queda verde e incluye pregunta vacía rechazada, `thread_id` opcional, `auto_aprobar` verdadero por defecto y `plan_id` opcional.
 
-- [ ] T3. Añadir primero pruebas de las rutas básicas; después, crear `src/api/app.py` con GET /health, la documentación en /docs, las rutas registradas y la carga del agente real o simulado. (RF-1, RF-2, RF-3, RF-16)
+- [ ] T3. Añadir primero pruebas de las rutas básicas; después, crear `app.py` en la raíz con GET /health y la documentación en /docs (RF-1, RF-2, RF-3, RF-16)
       Hecho cuando: `python -m pytest tests/test_api_rutas.py` queda verde e incluye /health indicando el modo simulado y /docs accesible sin clave.
 
 - [ ] T4. Añadir primero pruebas de POST /ask sin aprobación automática; después, crear `src/api/servicio.py` y la ruta: pasa la pregunta al agente, crea `thread_id` si falta, devuelve 422 si es inválida y deduce el campo de error. (RF-4, RF-5, RF-6, RF-13)

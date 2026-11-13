@@ -8,7 +8,7 @@
 | `src/api/__init__.py` | Crear | Paquete de la API. | — |
 | `src/api/esquemas.py` | Crear | Formatos de datos: pregunta, respuesta, aprobación y mensaje del historial. | RF-4, RF-5, RF-10, RF-11 |
 | `src/api/servicio.py` | Crear | Traduce cada petición a una llamada al agente: auto_aprobar, identificador nuevo y deducción del campo de error. | RF-4, RF-6 a RF-13, RF-15 |
-| `src/api/app.py` | Crear | Aplicación FastAPI: rutas, documentación y manejo del fallo inesperado. | RF-1 a RF-3, RF-14, RF-16 |
+| `app.py` | Crear | Aplicación FastAPI: rutas, documentación y manejo del fallo inesperado. | RF-1 a RF-3, RF-14, RF-16 |
 | `config.py` | Modificar | Textos fijos de la API (errores y avisos) en un solo punto. | RF-13, RF-14 |
 | `requirements.txt` | Modificar | Añadir `fastapi`, `uvicorn` y `httpx` (este último solo para los tests). | — |
 | `tests/test_api_rutas.py` | Crear | Tests de las rutas con el agente simulado. | RF-1 a RF-6, RF-14, RF-16 |
@@ -44,7 +44,7 @@ error deducido: si el registro tiene una entrada de tipo "control" con resultado
 ## Decisiones técnicas
 | Decisión | Alternativa descartada | Por qué |
 |---|---|---|
-| La API vive en `src/api/` y arranca con `src.api.app:app` | Usar `app.py` de la raíz | Hoy es la Streamlit; así no se pisa con el trabajo de Persona 3. |
+| La API vive en `app.py` de la raíz y arranca con `app:app` | Dejarla en `src/api/app.py` | El enunciado la sitúa en `app.py`; la Streamlit pasó a `front.py` para liberar ese nombre. |
 | Cargar el agente con `cargar_agente()` | Importar `src.agent` directamente | Reutiliza el cambio real/simulado (RF-16) que ya usan la CLI y Streamlit. |
 | Pasar `estado_vacio()` en cada pregunta | Guardar el estado en la API | El agente guarda el estado por conversación; es la fuente de verdad. |
 | Rutas síncronas (`def`) | Rutas asíncronas (`async def`) | El agente bloquea mientras trabaja; FastAPI ejecuta las rutas síncronas en hilos aparte. |
