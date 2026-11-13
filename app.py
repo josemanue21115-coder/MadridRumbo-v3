@@ -6,17 +6,20 @@ La documentación interactiva queda disponible en /docs.
 """
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 import config
 from src.api import servicio
-from src.api.esquemas import ApproveIn, AskIn, AskOut
+from src.api.esquemas import ApproveIn, AskIn, AskOut, MessageOut
 
 app = FastAPI(
     title="MadridRumbo API",
     description="Asistente de transporte público de Madrid: preguntas al agente y aprobación de planes.",
     version="1.0.0",
 )
+
+# Respuesta documentada para los fallos inesperados del agente.
+ERROR_500 = {500: {"description": "Fallo inesperado al procesar la consulta."}}
 
 
 def _modo_agente() -> str:
@@ -31,7 +34,7 @@ def health() -> dict:
     return {"estado": "ok", "modo": _modo_agente()}
 
 
-@app.post("/ask", response_model=AskOut, tags=["Agente"])
+@app.post("/ask", response_model=AskOut, tags=["Agente"], responses=ERROR_500)
 def ask(datos: AskIn) -> AskOut:
     """Envía una pregunta al agente y devuelve su respuesta.
 
@@ -41,7 +44,7 @@ def ask(datos: AskIn) -> AskOut:
     return servicio.preguntar(datos)
 
 
-@app.post("/approve", response_model=AskOut, tags=["Agente"])
+@app.post("/approve", response_model=AskOut, tags=["Agente"], responses=ERROR_500)
 def approve(datos: ApproveIn) -> AskOut:
     """Aprueba o rechaza el plan pendiente de una conversación.
 
@@ -49,3 +52,17 @@ def approve(datos: ApproveIn) -> AskOut:
     Si no hay plan pendiente, el aviso llega en el campo `error`.
     """
     return servicio.aprobar(datos)
+
+
+@app.get(
+    "/threads/{thread_id}/messages",
+    response_model=list[MessageOut],
+    tags=["Historial"],
+    responses={501: {"description": "Todavía no implementada: depende del historial en base de datos."}},
+)
+def messages(thread_id: str) -> list[MessageOut]:
+    """Devuelve los mensajes de una conversación (role, content, orden).
+
+    Ruta reservada: la implementa quien se encarga de la base de datos.
+    """
+    raise HTTPException(status_code=501, detail=config.API_MENSAJES_NO_IMPLEMENTADO)

@@ -20,7 +20,7 @@
 - [x] T6. Añadir primero pruebas de POST /approve; después, crear la ruta: aprobar, rechazar, elegir plan y aprobar sin plan pendiente. (RF-10, RF-11, RF-12, RF-13)
       Hecho cuando: `python -m pytest tests/test_api_aprobacion.py` queda verde con aprobar, rechazar, `plan_id` y un aviso sin plan pendiente.
 
-- [ ] T7. Añadir primero pruebas del fallo del agente y de la ruta del historial; después, devolver 500 genérico ante un fallo inesperado y 501 en GET /threads/{thread_id}/messages. (RF-1, RF-14)
+- [x] T7. Añadir primero pruebas del fallo del agente y de la ruta del historial; después, devolver 500 genérico ante un fallo inesperado y 501 en GET /threads/{thread_id}/messages. (RF-1, RF-14)
       Hecho cuando: `python -m pytest tests/test_api_rutas.py` queda verde con un agente que falla (500 sin detalles internos) y la ruta del historial respondiendo 501.
 
 - [ ] T8. Validación final RF por RF (`/sdd-validar`). (Todos los RF)
