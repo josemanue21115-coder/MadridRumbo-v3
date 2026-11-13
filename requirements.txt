@@ -15,3 +15,6 @@ fonttools
 pytest
 tzdata
 certifi
+fastapi
+uvicorn
+httpx

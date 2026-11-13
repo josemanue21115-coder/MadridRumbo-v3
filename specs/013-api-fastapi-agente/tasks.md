@@ -2,7 +2,7 @@
 
 > Una tarea cada vez: `/sdd-implementar Tn`. Tests primero. Marca `[x]` al terminar.
 
-- [ ] T1. Preparar el terreno: añadir `fastapi`, `uvicorn` y `httpx` a `requirements.txt`, instalarlos y crear el paquete vacío `src/api/`. (Stack, sin RF)
+- [x] T1. Preparar el terreno: añadir `fastapi`, `uvicorn` y `httpx` a `requirements.txt`, instalarlos y crear el paquete vacío `src/api/`. (Stack, sin RF)
       Hecho cuando: `pip install -r requirements.txt` termina sin errores y `python -c "import src.api, fastapi"` no falla.
 
 - [ ] T2. Añadir primero pruebas de los formatos de datos; después, crear `src/api/esquemas.py` con pregunta, respuesta, aprobación y mensaje. (RF-4, RF-5, RF-10, RF-11)
