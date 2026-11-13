@@ -318,6 +318,29 @@ La aplicación conserva el historial y el `thread_id` en la sesión del navegado
 
 El panel web oculta los diagnósticos técnicos del supervisor; el CLI sí los muestra. Al reiniciar el proceso se pierde el estado, porque el checkpointer actual está en memoria.
 
+
+### API REST (FastAPI)
+
+La API expone el agente por HTTP (spec 013). Se arranca desde la raíz del repositorio:
+
+```bash
+uvicorn app:app --reload
+```
+
+La documentación interactiva queda en `http://127.0.0.1:8000/docs`. Si ese puerto está ocupado, añade `--port 8001`. Para probarla sin gastar API, arráncala en modo simulado:
+
+```bash
+MADRIDRUMBO_GRAFO=falso uvicorn app:app --reload
+```
+
+| Ruta | Para qué sirve |
+| --- | --- |
+| `GET /health` | Comprueba que el servicio está vivo e indica si el agente es real o simulado. |
+| `POST /ask` | Envía una pregunta. Con `auto_aprobar` activo, un plan único se aprueba solo. |
+| `POST /approve` | Aprueba o rechaza el plan pendiente de una conversación. |
+| `GET /threads/{thread_id}/messages` | Reservada para el historial en base de datos (responde 501 por ahora). |
+
+
 ### Imagen demo multimodal
 
 La única imagen seleccionable desde los clientes es la referencia literal `assets/imagen_demo.jpg`; no hay subida de archivos ni se permiten rutas arbitrarias. Escríbela como parte de la consulta, por ejemplo:
