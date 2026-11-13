@@ -5,7 +5,7 @@
 - [x] T1. Preparar el terreno: añadir `fastapi`, `uvicorn` y `httpx` a `requirements.txt`, instalarlos y crear el paquete vacío `src/api/`. (Stack, sin RF)
       Hecho cuando: `pip install -r requirements.txt` termina sin errores y `python -c "import src.api, fastapi"` no falla.
 
-- [ ] T2. Añadir primero pruebas de los formatos de datos; después, crear `src/api/esquemas.py` con pregunta, respuesta, aprobación y mensaje. (RF-4, RF-5, RF-10, RF-11)
+- [x] T2. Añadir primero pruebas de los formatos de datos; después, crear `src/api/esquemas.py` con pregunta, respuesta, aprobación y mensaje. (RF-4, RF-5, RF-10, RF-11)
       Hecho cuando: `python -m pytest tests/test_api_esquemas.py` queda verde e incluye pregunta vacía rechazada, `thread_id` opcional, `auto_aprobar` verdadero por defecto y `plan_id` opcional.
 
 - [ ] T3. Añadir primero pruebas de las rutas básicas; después, crear `src/api/app.py` con GET /health, la documentación en /docs, las rutas registradas y la carga del agente real o simulado. (RF-1, RF-2, RF-3, RF-16)
