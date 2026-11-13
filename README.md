@@ -140,7 +140,7 @@ Mientras haya un plan pendiente, los clientes bloquean mensajes nuevos. Un recha
 ```text
 MadridRumbo/
 ├── main.py                         # Cliente CLI del grafo
-├── app.py                          # Cliente web Streamlit del mismo grafo
+├── front.py                          # Cliente web Streamlit del mismo grafo
 ├── config.py                       # Configuración centralizada
 ├── model_auth.py                   # Lectura/solicitud de claves de modelos
 ├── requirements.txt
@@ -263,7 +263,7 @@ python -m rag.rag_cli --ask "¿Qué es la Tarjeta Azul?" --k 4
 
 ## Uso de la aplicación
 
-Los clientes `main.py` y `app.py` consumen el mismo contrato de `src.agent`; no llaman al RAG directamente. Con el grafo real, una consulta puede usar Gemini, el RAG, Nominatim o Google Routes según el caso.
+Los clientes `main.py` y `front.py` consumen el mismo contrato de `src.agent`; no llaman al RAG directamente. Con el grafo real, una consulta puede usar Gemini, el RAG, Nominatim o Google Routes según el caso.
 
 ### Modo simulado, sin APIs
 
@@ -311,7 +311,7 @@ La demo usa conversaciones independientes para tres pedidos: horarios («¿Hasta
 ### Interfaz web con Streamlit
 
 ```bash
-streamlit run app.py
+streamlit run front.py
 ```
 
 La aplicación conserva el historial y el `thread_id` en la sesión del navegador. Al enviar un mensaje, este aparece en el chat de inmediato con un indicador de espera. Bajo cada respuesta hay un desplegable **Pasos seguidos** con las tools ejecutadas en ese turno (nombre, estado y extracto) y el registro visible; si el turno no ejecutó nada, no aparece. La barra lateral incluye los planes pendientes, selector cuando hay más de uno, botones **Aprobar** y **Rechazar**, **Nueva conversación** y un panel de depuración. Al existir un plan pendiente, el campo de chat queda desactivado hasta decidirlo.

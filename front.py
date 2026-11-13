@@ -1,5 +1,5 @@
 """
-app.py — Cliente Streamlit del grafo multiagente (spec 008).
+front.py — Cliente Streamlit del grafo multiagente (spec 008).
 
 Capa fina: toda la lógica de la conversación vive en `src/clientes/sesion.py`, igual que en el CLI.
 Aquí solo se dibuja el chat, la barra lateral con el plan y los botones Aprobar y Rechazar,
