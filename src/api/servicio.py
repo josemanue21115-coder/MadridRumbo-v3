@@ -9,6 +9,7 @@ import config
 from src.api.esquemas import AskIn, AskOut
 from src.clientes.cargar import cargar_agente
 from src.clientes.contrato import estado_vacio
+from src.clientes.planes import ids_de_planes
 
 # El agente se carga una sola vez y se reutiliza: guarda las conversaciones en memoria,
 # así que crear uno nuevo en cada petición le haría olvidar los planes pendientes.
@@ -32,11 +33,8 @@ def _deducir_error(resultado: dict) -> str | None:
     return None
 
 
-def preguntar(datos: AskIn) -> AskOut:
-    """Pasa la pregunta al agente y empaqueta su resultado con el formato de la API."""
-    # Si la persona no envía identificador, se crea uno nuevo para esta conversación.
-    thread_id = datos.thread_id or str(uuid.uuid4())
-    resultado = obtener_agente().procesar_turno(estado_vacio(), datos.pregunta, thread_id)
+def _a_respuesta(resultado: dict, thread_id: str) -> AskOut:
+    """Empaqueta el resultado del agente con el formato de salida de la API."""
     return AskOut(
         respuesta=resultado["respuesta"],
         thread_id=thread_id,
@@ -45,3 +43,24 @@ def preguntar(datos: AskIn) -> AskOut:
         plan=resultado["plan"],
         error=_deducir_error(resultado),
     )
+
+
+def preguntar(datos: AskIn) -> AskOut:
+    """Pasa la pregunta al agente y, si procede, aprueba solo el plan pendiente."""
+    # Si la persona no envía identificador, se crea uno nuevo para esta conversación.
+    thread_id = datos.thread_id or str(uuid.uuid4())
+    agente = obtener_agente()
+    resultado = agente.procesar_turno(estado_vacio(), datos.pregunta, thread_id)
+
+    # Aprobación automática: solo si se pide, hay un plan esperando y es uno único.
+    # Con varios planes la API no elige por la persona (RF-9).
+    if (
+        datos.auto_aprobar
+        and resultado["hitl_pendiente"]
+        and len(ids_de_planes(resultado["plan"])) == 1
+    ):
+        # El agente real recupera el plan de su memoria; el simulado lo lee de este estado.
+        estado = {**estado_vacio(), "plan": resultado["plan"]}
+        resultado = agente.aprobar_plan(estado, thread_id, True)
+
+    return _a_respuesta(resultado, thread_id)

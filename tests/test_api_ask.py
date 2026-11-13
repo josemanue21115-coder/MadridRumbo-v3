@@ -33,8 +33,10 @@ def test_pregunta_sin_plan_devuelve_respuesta_y_cierra():
 
 
 def test_pregunta_de_ruta_deja_el_plan_pendiente():
-    # Sin aprobación automática, el plan se devuelve pendiente (RF-4).
-    datos = cliente.post("/ask", json={"pregunta": "Quiero una ruta de Sol a Atocha"}).json()
+    # Con la aprobación automática apagada, el plan se devuelve pendiente (RF-4 y RF-8).
+    datos = cliente.post(
+        "/ask", json={"pregunta": "Quiero una ruta de Sol a Atocha", "auto_aprobar": False}
+    ).json()
     assert datos["pendiente_hitl"] is True
     assert datos["done"] is False
     assert len(datos["plan"]) == 1

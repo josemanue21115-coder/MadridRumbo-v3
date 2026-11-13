@@ -14,7 +14,7 @@
 - [x] T4. Añadir primero pruebas de POST /ask sin aprobación automática; después, crear `src/api/servicio.py` y la ruta: pasa la pregunta al agente, crea `thread_id` si falta, devuelve 422 si es inválida y deduce el campo de error. (RF-4, RF-5, RF-6, RF-13)
       Hecho cuando: `python -m pytest tests/test_api_rutas.py` queda verde con una pregunta válida, una vacía y una sin `thread_id`.
 
-- [ ] T5. Añadir primero pruebas de la aprobación automática con `GrafoFalso`; después, implementar `auto_aprobar` para uno y para varios planes. (RF-7, RF-8, RF-9, RF-15)
+- [x] T5. Añadir primero pruebas de la aprobación automática con `GrafoFalso`; después, implementar `auto_aprobar` para uno y para varios planes. (RF-7, RF-8, RF-9, RF-15)
       Hecho cuando: `python -m pytest tests/test_api_aprobacion.py` queda verde e incluye un plan con aprobación automática, un plan sin ella y varios planes sin aprobar ninguno.
 
 - [ ] T6. Añadir primero pruebas de POST /approve; después, crear la ruta: aprobar, rechazar, elegir plan y aprobar sin plan pendiente. (RF-10, RF-11, RF-12, RF-13)
