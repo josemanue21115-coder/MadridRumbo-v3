@@ -9,6 +9,8 @@ import os
 from fastapi import FastAPI
 
 import config
+from src.api import servicio
+from src.api.esquemas import AskIn, AskOut
 
 app = FastAPI(
     title="MadridRumbo API",
@@ -27,3 +29,12 @@ def _modo_agente() -> str:
 def health() -> dict:
     """Comprueba que el servicio está vivo e indica si usa el agente real o el simulado."""
     return {"estado": "ok", "modo": _modo_agente()}
+
+
+@app.post("/ask", response_model=AskOut, tags=["Agente"])
+def ask(datos: AskIn) -> AskOut:
+    """Envía una pregunta al agente y devuelve su respuesta.
+
+    Si no se indica `thread_id`, se crea una conversación nueva. Una pregunta vacía da error 422.
+    """
+    return servicio.preguntar(datos)

@@ -230,3 +230,7 @@ PREGUNTA_PRECIO = "¿Cuánto cuesta el {titulo}?"
 PREGUNTA_PRECIO_CON_ZONA = "Tarifa y precio del {titulo} {zona}"
 # Frase con la que el RAG se abstiene (definida en rag/prompt.py; un test vigila que coincida).
 FRASE_ABSTENCION = "No lo sé, no está en los documentos."
+
+# --- API (spec 013) ---
+# Texto que se devuelve en `error` cuando el agente rechaza una consulta sin dar motivo.
+API_AVISO_RECHAZO_GENERICO = "El agente no ha podido procesar la consulta."
