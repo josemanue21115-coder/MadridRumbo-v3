@@ -17,7 +17,7 @@
 - [x] T5. Añadir primero pruebas de la aprobación automática con `GrafoFalso`; después, implementar `auto_aprobar` para uno y para varios planes. (RF-7, RF-8, RF-9, RF-15)
       Hecho cuando: `python -m pytest tests/test_api_aprobacion.py` queda verde e incluye un plan con aprobación automática, un plan sin ella y varios planes sin aprobar ninguno.
 
-- [ ] T6. Añadir primero pruebas de POST /approve; después, crear la ruta: aprobar, rechazar, elegir plan y aprobar sin plan pendiente. (RF-10, RF-11, RF-12, RF-13)
+- [x] T6. Añadir primero pruebas de POST /approve; después, crear la ruta: aprobar, rechazar, elegir plan y aprobar sin plan pendiente. (RF-10, RF-11, RF-12, RF-13)
       Hecho cuando: `python -m pytest tests/test_api_aprobacion.py` queda verde con aprobar, rechazar, `plan_id` y un aviso sin plan pendiente.
 
 - [ ] T7. Añadir primero pruebas del fallo del agente y de la ruta del historial; después, devolver 500 genérico ante un fallo inesperado y 501 en GET /threads/{thread_id}/messages. (RF-1, RF-14)

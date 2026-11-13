@@ -10,7 +10,7 @@ from fastapi import FastAPI
 
 import config
 from src.api import servicio
-from src.api.esquemas import AskIn, AskOut
+from src.api.esquemas import ApproveIn, AskIn, AskOut
 
 app = FastAPI(
     title="MadridRumbo API",
@@ -36,5 +36,16 @@ def ask(datos: AskIn) -> AskOut:
     """Envía una pregunta al agente y devuelve su respuesta.
 
     Si no se indica `thread_id`, se crea una conversación nueva. Una pregunta vacía da error 422.
+    Con `auto_aprobar` activo, un plan único se aprueba solo; con varios planes, se devuelven pendientes.
     """
     return servicio.preguntar(datos)
+
+
+@app.post("/approve", response_model=AskOut, tags=["Agente"])
+def approve(datos: ApproveIn) -> AskOut:
+    """Aprueba o rechaza el plan pendiente de una conversación.
+
+    `plan_id` solo es necesario cuando hay varios planes pendientes.
+    Si no hay plan pendiente, el aviso llega en el campo `error`.
+    """
+    return servicio.aprobar(datos)
