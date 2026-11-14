@@ -4,6 +4,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# --- Persistencia PB3 ---
+# El historial de producto usa PostgreSQL; el checkpoint del grafo sigue en memoria.
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+
 # --- Ingesta y chunking ---
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 100
