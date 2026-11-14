@@ -12,6 +12,10 @@ import src.agent as agent
 from src.clientes.contrato import estado_vacio
 from src.graph import crear_grafo
 
+pytestmark = pytest.mark.skip(
+    reason="Spec 015 sustituye el cliente local del grafo; cobertura actual en test_front_streamlit_api.py"
+)
+
 APP = str(Path(__file__).resolve().parent.parent / "front.py")
 DIAGNOSTICO = {
     "paso": 1,
