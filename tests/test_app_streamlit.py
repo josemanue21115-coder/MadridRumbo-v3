@@ -12,7 +12,7 @@ import src.agent as agent
 from src.clientes.contrato import estado_vacio
 from src.graph import crear_grafo
 
-APP = str(Path(__file__).resolve().parent.parent / "app.py")
+APP = str(Path(__file__).resolve().parent.parent / "front.py")
 DIAGNOSTICO = {
     "paso": 1,
     "tipo": "nodo",

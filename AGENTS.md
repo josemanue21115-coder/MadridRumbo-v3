@@ -10,7 +10,7 @@ En la iteración actual, MadridRumbo evoluciona hacia un sistema multiagente con
 |---|---|
 | `config.py` | Rutas, corpus, parámetros de chunking, embeddings, retrieval y generación. |
 | `main.py` | Vacío; `[COMPLETAR]` como punto de entrada CLI raíz. |
-| `app.py` | Chat Streamlit, historial, contexto recuperado y métricas; importa `rag.responder` |
+| `front.py` | Chat Streamlit, historial, contexto recuperado y métricas; importa `rag.responder` |
 | `model_auth.py` | Carga o solicita de forma oculta claves de Gemini y OpenAI. |
 | `rag/load.py` | Carga PDF, Markdown y CSV; agrupa paradas CRTM. |
 | `rag/clean.py` | Normaliza texto y descarta documentos vacíos. |
@@ -35,7 +35,7 @@ En la iteración actual, MadridRumbo evoluciona hacia un sistema multiagente con
 - Indexar: `python -m rag.rag_cli --index --> genera la base de datos y el índice de ChromaDB, reutiliza embeddings locales si existen` ⚠️ puede gastar API.
 - Preguntar: `python -m rag.rag_cli --ask "pregunta" --k 4 --> responde una pregunta basada en los documentos` ⚠️ gasta API.
 - Solo retrieval: `python -m rag.rag_cli --query "pregunta" --k 4 --> comprueba el contexto recuperado sin responder a la pregunta` ⚠️ puede gastar API si debe embeber la consulta.
-- Web: `streamlit run app.py` ⚠️ gasta API.
+- Web: `streamlit run front.py` ⚠️ gasta API.
 
 ## Flujo SDD de este repositorio
 - Constitución: `docs/constitution.md`. Léela siempre.
