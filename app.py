@@ -1,102 +1,68 @@
+"""API REST del agente MadridRumbo (spec 013).
+
+Expone como servicio HTTP el mismo agente que usan la terminal y la web.
+Se arranca con: uvicorn app:app
+La documentación interactiva queda disponible en /docs.
 """
-app.py — Cliente Streamlit del grafo multiagente (spec 008).
+import os
 
-Capa fina: toda la lógica de la conversación vive en `src/clientes/sesion.py`, igual que en el CLI.
-Aquí solo se dibuja el chat, la barra lateral con el plan y los botones Aprobar y Rechazar,
-y el panel de depuración.
-"""
-import sys
-from pathlib import Path
+from fastapi import FastAPI, HTTPException
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import streamlit as st
+import config
+from src.api import servicio
+from src.api.esquemas import ApproveIn, AskIn, AskOut, MessageOut
 
-from src.clientes.cargar import GrafoNoDisponible, cargar_agente
-from src.clientes.planes import ids_de_planes, resumir_plan
-from src.clientes.presentacion import datos_depuracion, pasos_del_turno
-from src.clientes.sesion import SesionChat
-
-st.set_page_config(page_title="MadridRumbo", page_icon="assets/icono.png")
-
-# La sesión (identificador, estado e historial) vive en st.session_state: Streamlit vuelve a
-# ejecutar este script en cada interacción y las variables normales se perderían.
-if "sesion" not in st.session_state:
-    try:
-        agente, aviso = cargar_agente()
-    except GrafoNoDisponible as error:
-        st.error(str(error))
-        st.stop()
-    st.session_state.sesion = SesionChat(agente)
-    st.session_state.aviso = aviso
-
-sesion: SesionChat = st.session_state.sesion
-
-# --- Barra lateral: plan pendiente, decisión, nueva conversación y depuración ---
-with st.sidebar:
-    st.image("assets/icono.png", width=80)
-    if st.session_state.aviso:
-        st.warning(st.session_state.aviso)
-
-    st.subheader("Plan")
-    ids_planes = ids_de_planes(sesion.planes)
-    plan_elegido = None
-    if sesion.puede_decidir:
-        # Cada plan con su resumen legible; con varios hay que elegir cuál se decide (RF-31).
-        for plan in sesion.planes:
-            st.text(resumir_plan(plan))
-        if len(ids_planes) > 1:
-            plan_elegido = st.radio("Plan a decidir", ids_planes, key="plan_elegido")
-    elif sesion.estado["done"]:
-        st.success("Conversación terminada.")
-    else:
-        st.caption("No hay ningún plan pendiente de decisión.")
-
-    # Los botones solo están activos con un plan pendiente (RF-22).
-    columna_aprobar, columna_rechazar = st.columns(2)
-    aprobar = columna_aprobar.button("Aprobar", type="primary", disabled=not sesion.puede_decidir)
-    rechazar = columna_rechazar.button("Rechazar", disabled=not sesion.puede_decidir)
-    if aprobar or rechazar:
-        sesion.decidir(aprobado=aprobar, plan_id=plan_elegido)
-        st.rerun()
-
-    if st.button("Nueva conversación"):
-        sesion.nueva_conversacion()
-        st.rerun()
-
-    # El panel es para desarrollo: muestra el registro completo, incluidos diagnósticos del Supervisor.
-    with st.expander("Depuración"):
-        st.json(datos_depuracion(sesion.estado, sesion.thread_id, ocultar_tecnicas=False))
-
-# --- Chat ---
-st.title("MadridRumbo — Asistente de transporte de Madrid")
-
-for entrada in sesion.historial:
-    if entrada["rol"] == "error":
-        st.error(entrada["texto"])
-    else:
-        with st.chat_message("user" if entrada["rol"] == "usuario" else "assistant"):
-            st.write(entrada["texto"])
-            if entrada["rol"] == "asistente":
-                # Pasos de ese turno: tools y registro visible, sin los diagnósticos del supervisor (RF-39 a RF-41).
-                pasos = pasos_del_turno(entrada.get("log", []), entrada.get("traza", []), ocultar_tecnicas=True)
-                if pasos:
-                    with st.expander("Pasos seguidos"):
-                        for linea in pasos:
-                            st.text(linea)
-
-# Con un plan pendiente el cuadro de mensaje queda bloqueado hasta aprobar o rechazar (RF-22b).
-mensaje = st.chat_input(
-    "Escribe tu pregunta sobre transporte en Madrid...",
-    disabled=not sesion.puede_escribir,
+app = FastAPI(
+    title="MadridRumbo API",
+    description="Asistente de transporte público de Madrid: preguntas al agente y aprobación de planes.",
+    version="1.0.0",
 )
-if sesion.puede_decidir:
-    st.info("Hay un plan pendiente: apruébalo o recházalo en la barra lateral para continuar.")
 
-if mensaje:
-    # El historial se dibuja antes de llamar al grafo: sin esto la pregunta no aparecería hasta recibir la
-    # respuesta. Se dibuja la burbuja de la persona y un indicador de espera mientras responde (RF-38).
-    with st.chat_message("user"):
-        st.write(mensaje)
-    with st.chat_message("assistant"), st.spinner("Consultando al asistente..."):
-        sesion.enviar(mensaje)
-    st.rerun()
+# Respuesta documentada para los fallos inesperados del agente.
+ERROR_500 = {500: {"description": "Fallo inesperado al procesar la consulta."}}
+
+
+def _modo_agente() -> str:
+    # El modo simulado se activa con una variable de entorno y permite probar sin gastar API.
+    simulado = os.environ.get(config.VARIABLE_MODO_SIMULADO) == config.VALOR_MODO_SIMULADO
+    return "simulado" if simulado else "real"
+
+
+@app.get("/health", tags=["Estado"])
+def health() -> dict:
+    """Comprueba que el servicio está vivo e indica si usa el agente real o el simulado."""
+    return {"estado": "ok", "modo": _modo_agente()}
+
+
+@app.post("/ask", response_model=AskOut, tags=["Agente"], responses=ERROR_500)
+def ask(datos: AskIn) -> AskOut:
+    """Envía una pregunta al agente y devuelve su respuesta.
+
+    Si no se indica `thread_id`, se crea una conversación nueva. Una pregunta vacía da error 422.
+    Con `auto_aprobar` activo, un plan único se aprueba solo; con varios planes, se devuelven pendientes.
+    """
+    return servicio.preguntar(datos)
+
+
+@app.post("/approve", response_model=AskOut, tags=["Agente"], responses=ERROR_500)
+def approve(datos: ApproveIn) -> AskOut:
+    """Aprueba o rechaza el plan pendiente de una conversación.
+
+    `plan_id` solo es necesario cuando hay varios planes pendientes.
+    Si no hay plan pendiente, el aviso llega en el campo `error`.
+    """
+    return servicio.aprobar(datos)
+
+
+@app.get(
+    "/threads/{thread_id}/messages",
+    response_model=list[MessageOut],
+    tags=["Historial"],
+    responses={501: {"description": "Todavía no implementada: depende del historial en base de datos."}},
+)
+def messages(thread_id: str) -> list[MessageOut]:
+    """Devuelve los mensajes de una conversación (role, content, orden).
+
+    Ruta reservada: la implementa quien se encarga de la base de datos.
+    """
+    raise HTTPException(status_code=501, detail=config.API_MENSAJES_NO_IMPLEMENTADO)

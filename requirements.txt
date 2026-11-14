@@ -17,3 +17,6 @@ tzdata
 certifi
 sqlmodel>=0.0.22,<1
 psycopg2-binary>=2.9,<3
+fastapi
+uvicorn
+httpx

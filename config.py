@@ -234,3 +234,12 @@ PREGUNTA_PRECIO = "¿Cuánto cuesta el {titulo}?"
 PREGUNTA_PRECIO_CON_ZONA = "Tarifa y precio del {titulo} {zona}"
 # Frase con la que el RAG se abstiene (definida en rag/prompt.py; un test vigila que coincida).
 FRASE_ABSTENCION = "No lo sé, no está en los documentos."
+
+# --- API (spec 013) ---
+# Texto que se devuelve en `error` cuando el agente rechaza una consulta sin dar motivo.
+API_AVISO_RECHAZO_GENERICO = "El agente no ha podido procesar la consulta."
+
+# Mensaje genérico cuando el agente falla de forma inesperada (error 500): no revela detalles internos.
+API_ERROR_INTERNO = "Ha ocurrido un error inesperado al procesar la consulta. Inténtalo de nuevo más tarde."
+# Aviso de la ruta de historial mientras no esté conectada a la base de datos (error 501).
+API_MENSAJES_NO_IMPLEMENTADO = "El historial de mensajes todavía no está disponible."
