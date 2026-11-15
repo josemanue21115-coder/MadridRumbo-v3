@@ -207,8 +207,8 @@ def test_thread_valido_se_conserva_en_pregunta_y_decision(cliente_api, thread_id
 @pytest.mark.parametrize("thread_id", ["x" * 128, "ñ" * 128, " hilo con espacios "])
 def test_historial_thread_valido_llega_a_la_ruta(cliente_api, thread_id):
     respuesta = cliente_api.get(f"/threads/{quote(thread_id, safe='')}/messages")
-    # T2 solo valida la entrada; la conexión de historial sustituirá este 501 en T4.
-    assert respuesta.status_code == 501
+    # El identificador es válido y llega a la búsqueda, aunque el hilo no exista.
+    assert respuesta.status_code == 404
 
 
 @pytest.mark.parametrize("campo", [{}, {"thread_id": None}])
@@ -226,3 +226,66 @@ def test_approve_no_admite_identificador_null(cliente_api, llamadas_externas):
     respuesta = cliente_api.post("/approve", json={"thread_id": None, "aprobado": True})
     assert respuesta.status_code == 422
     assert llamadas_externas == {"agente": 0, "sql": 0}
+
+
+def test_historial_guardado_200(cliente_api, sesiones_api):
+    from src.history import save_closed_turn
+
+    with sesiones_api() as sesion:
+        save_closed_turn(sesion, "uno", "Pregunta 1", "Respuesta 1")
+        save_closed_turn(sesion, "dos", "Ajena", "Ajena")
+        save_closed_turn(sesion, "uno", "Pregunta 2", "Respuesta 2")
+    respuesta = cliente_api.get("/threads/uno/messages")
+    assert respuesta.status_code == 200
+    assert respuesta.json() == [
+        {"role": "user", "content": "Pregunta 1", "orden": 1},
+        {"role": "assistant", "content": "Respuesta 1", "orden": 2},
+        {"role": "user", "content": "Pregunta 2", "orden": 3},
+        {"role": "assistant", "content": "Respuesta 2", "orden": 4},
+    ]
+
+
+def test_desconocido_404(cliente_api, sesiones_api):
+    from sqlmodel import select
+    from src.models import Conversation
+
+    respuesta = cliente_api.get("/threads/inexistente/messages")
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detail": "Conversación no encontrada"}
+    with sesiones_api() as sesion:
+        assert sesion.exec(select(Conversation)).all() == []
+
+
+def test_conocido_sin_mensajes_200_vacio(cliente_api):
+    from src.api.historial import registro_temporal
+
+    registro_temporal.guardar_pregunta("pendiente", "Pregunta original")
+    respuesta = cliente_api.get("/threads/pendiente/messages")
+    assert respuesta.status_code == 200
+    assert respuesta.json() == []
+
+
+@pytest.mark.parametrize("operacion", ["es_hilo_conocido", "leer_historial"])
+def test_lectura_fallida_500(cliente_api, monkeypatch, operacion):
+    from src.api import historial
+
+    historial.registro_temporal.registrar_hilo("conocido")
+
+    def fallo(*args):
+        raise RuntimeError("detalle SQL sensible ficticio")
+
+    monkeypatch.setattr(historial, operacion, fallo)
+    respuesta = cliente_api.get("/threads/conocido/messages")
+    assert respuesta.status_code == 500
+    assert respuesta.json() == {"detail": __import__("config").API_ERROR_INTERNO}
+    assert "SQL" not in respuesta.text
+
+
+@pytest.mark.parametrize("status", [404, 422])
+def test_errores_http_deliberados_se_conservan(status):
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as capturada:
+        with servicio._fallos_como_500():
+            raise HTTPException(status_code=status, detail="Error esperado")
+    assert capturada.value.status_code == status

@@ -37,11 +37,10 @@ def test_agente_no_disponible_da_500_generico(cliente_api, monkeypatch):
     assert "detalle interno" not in r.text
 
 
-def test_ruta_de_mensajes_esta_reservada_y_responde_501(cliente_api):
-    # La ruta existe, pero el historial lo implementa la persona 2 (base de datos).
+def test_historial_inexistente_da_404(cliente_api):
     r = cliente_api.get("/threads/abc/messages")
-    assert r.status_code == 501
-    assert r.json()["detail"] == config.API_MENSAJES_NO_IMPLEMENTADO
+    assert r.status_code == 404
+    assert r.json()["detail"] == config.API_CONVERSACION_NO_ENCONTRADA
 
 
 def test_esquema_incluye_la_ruta_de_mensajes(cliente_api):

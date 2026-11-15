@@ -6,9 +6,11 @@ La documentación interactiva queda disponible en /docs.
 """
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI
+from sqlmodel import Session
 
 import config
+import src.db as db
 from src.api import servicio
 from src.api.esquemas import ApproveIn, AskIn, AskOut, MessageOut, ThreadId
 
@@ -58,11 +60,8 @@ def approve(datos: ApproveIn) -> AskOut:
     "/threads/{thread_id}/messages",
     response_model=list[MessageOut],
     tags=["Historial"],
-    responses={501: {"description": "Todavía no implementada: depende del historial en base de datos."}},
+    responses={404: {"description": "Conversación no encontrada."}, **ERROR_500},
 )
-def messages(thread_id: ThreadId) -> list[MessageOut]:
-    """Devuelve los mensajes de una conversación (role, content, orden).
-
-    Ruta reservada: la implementa quien se encarga de la base de datos.
-    """
-    raise HTTPException(status_code=501, detail=config.API_MENSAJES_NO_IMPLEMENTADO)
+def messages(thread_id: ThreadId, session: Session = Depends(db.get_session)) -> list[MessageOut]:
+    """Recupera el historial finalizado, ordenado dentro de la conversación."""
+    return servicio.obtener_historial(session, thread_id)

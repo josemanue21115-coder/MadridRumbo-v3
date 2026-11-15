@@ -8,8 +8,10 @@ from contextlib import contextmanager
 from typing import Any
 
 from fastapi import HTTPException
+from sqlmodel import Session
 
 import config
+from src.api import historial
 from src.api.esquemas import ApproveIn, AskIn, AskOut
 from src.clientes.cargar import cargar_agente
 from src.clientes.contrato import estado_vacio
@@ -26,6 +28,14 @@ _agente: Any = None
 _planes_pendientes: dict[str, list] = {}
 
 
+def obtener_historial(session: Session, thread_id: str):
+    """Distingue un hilo inexistente de uno conocido sin mensajes finalizados."""
+    with _fallos_como_500():
+        if not historial.es_hilo_conocido(session, thread_id):
+            raise HTTPException(status_code=404, detail=config.API_CONVERSACION_NO_ENCONTRADA)
+        return historial.leer_historial(session, thread_id)
+
+
 @contextmanager
 def _fallos_como_500():
     """Convierte cualquier fallo inesperado en un error 500 con un mensaje genérico en español.
@@ -34,6 +44,8 @@ def _fallos_como_500():
     """
     try:
         yield
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Fallo inesperado al procesar la petición")
         raise HTTPException(status_code=500, detail=config.API_ERROR_INTERNO) from None

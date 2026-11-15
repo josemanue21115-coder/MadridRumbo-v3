@@ -1,7 +1,7 @@
 # Tareas — Spec 016
 
 > Basadas en la especificación y el plan aprobados el 2026-11-15.
-> Estado: T1, T2 y T3 completadas y verificadas el 2026-11-15; T4 a T20 pendientes.
+> Estado: tareas completadas hasta T5; ver evidencias por incremento.
 > Una tarea cada vez. Tests primero. Marcar `[x]` solo después de verificarla.
 
 ## Reglas de ejecución
@@ -28,11 +28,11 @@
   **Depende de:** T1, T2.
   **Hecho cuando:** `tests/test_api_historial.py::test_campos_publicos_historial`, `test_orden_consecutivo_con_ids_intercalados` y `test_hilos_separados` pasan, junto con una prueba de limpieza del registro temporal, sin cambiar los contratos de SPEC-014.
 
-- [ ] **T4. Conectar la ruta de historial y sustituir el 501.** Escribir primero pruebas HTTP de conversación guardada, desconocida y conocida sin mensajes; después conectar lectura y sesión por petición y actualizar la expectativa 501 obsoleta de SPEC-013. (RF-01, RF-02, RF-03, RF-04, RF-05, RF-06)
+- [x] **T4. Conectar la ruta de historial y sustituir el 501.** Escribir primero pruebas HTTP de conversación guardada, desconocida y conocida sin mensajes; después conectar lectura y sesión por petición y actualizar la expectativa 501 obsoleta de SPEC-013. (RF-01, RF-02, RF-03, RF-04, RF-05, RF-06)
   **Depende de:** T2, T3.
   **Hecho cuando:** `tests/test_api_historial.py::test_historial_guardado_200`, `test_desconocido_404` y `test_conocido_sin_mensajes_200_vacio` pasan; el 404 contiene «Conversación no encontrada», no se crean filas al consultar y `tests/test_api_errores.py` queda verde.
 
-- [ ] **T5. Distinguir fallos de lectura de ausencia de hilo.** Escribir primero un test que fuerce error SQL y otro que preserve errores HTTP deliberados; después ajustar la conversión de excepciones sin exponer datos internos. (RF-05, RF-16)
+- [x] **T5. Distinguir fallos de lectura de ausencia de hilo.** Escribir primero un test que fuerce error SQL y otro que preserve errores HTTP deliberados; después ajustar la conversión de excepciones sin exponer datos internos. (RF-05, RF-16)
   **Depende de:** T4.
   **Hecho cuando:** `tests/test_api_historial.py::test_lectura_fallida_500` pasa con detalle genérico, el error no aparece como lista vacía ni 404 y el test de hilo desconocido sigue devolviendo 404.
 
@@ -114,7 +114,7 @@
 Los 24 requisitos aparecen en tareas anteriores al cierre; no falta ninguno.
 Las dependencias permiten una suite verde tras cada incremento, aunque los
 requisitos de la funcionalidad solo queden completos al terminar sus tareas.
-T1, T2 y T3 están completadas; las tareas restantes no están iniciadas.
+El estado de las tareas y las evidencias se actualiza por incremento.
 
 ## Evidencias de T1 — 2026-11-15
 
@@ -218,3 +218,17 @@ servicio todavía no usan este registro para tramitar turnos: esa conexión se
 realizará en las tareas posteriores. La ruta de historial válida conserva su
 501 hasta T4. No se modificaron el agente, el frontend ni la capa de SPEC-014.
 No se hizo `git add`, commit, push ni cambios en PR; T4 no se ha iniciado.
+
+
+## Evidencias de T4 — 2026-11-15
+
+Pruebas previas: tres fallos por 501. Ruta HTTP conectada, con sesión por petición, mensajes ordenados, 404 de desconocido y 200 vacío del conocido.
+
+Regresión: **1369 passed, 18 skipped in 22.12s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T5 — 2026-11-15
+
+Pruebas previas: cuatro fallos. Se conserva HTTPException y se transforman errores inesperados de lectura en 500 genérico.
+
+Regresión: **1373 passed, 18 skipped in 17.67s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
