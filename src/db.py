@@ -19,7 +19,10 @@ def normalize_database_url(url: str) -> str:
 @lru_cache(maxsize=1)
 def get_engine():
     url = normalize_database_url(config.DATABASE_URL)
-    if not (url.startswith("postgresql://") or url.startswith("postgresql+psycopg://")):
+    if url.startswith("postgresql://"):
+        # Usa el driver declarado, incluso si SQLAlchemy cambia su predeterminado.
+        url = "postgresql+psycopg2://" + url[len("postgresql://") :]
+    if not url.startswith(("postgresql+psycopg2://", "postgresql+psycopg://")):
         raise ValueError("Se requiere PostgreSQL en desarrollo y producción")
     return create_engine(url, pool_pre_ping=True)
 
