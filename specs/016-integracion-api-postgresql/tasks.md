@@ -1,7 +1,7 @@
 # Tareas — Spec 016
 
 > Basadas en la especificación y el plan aprobados el 2026-11-15.
-> Estado: tareas completadas hasta T15; ver evidencias por incremento.
+> Estado: tareas completadas hasta T18; ver evidencias por incremento.
 > Una tarea cada vez. Tests primero. Marcar `[x]` solo después de verificarla.
 
 ## Reglas de ejecución
@@ -76,15 +76,15 @@
   **Depende de:** T14.
   **Hecho cuando:** `tests/test_api_persistencia.py::test_respuestas_conservan_contrato_013` y `test_persistencia_independiente_del_modo` pasan con los mismos campos y reglas de guardado, sin ejecutar un LLM, tools de transporte ni embeddings reales.
 
-- [ ] **T16. Preparar las pruebas PostgreSQL explícitas y comprobar lectura de varios turnos.** Escribir primero el fixture optativo con validación del destino y casos de dos turnos e hilos intercalados; después ajustar únicamente su infraestructura de pruebas para ejecutar esos casos en una base local desechable. (RF-01, RF-02, RF-03, RF-04, RF-07, RF-17, RF-21)
+- [x] **T16. Preparar las pruebas PostgreSQL explícitas y comprobar lectura de varios turnos.** Escribir primero el fixture optativo con validación del destino y casos de dos turnos e hilos intercalados; después ajustar únicamente su infraestructura de pruebas para ejecutar esos casos en una base local desechable. (RF-01, RF-02, RF-03, RF-04, RF-07, RF-17, RF-21)
   **Depende de:** T15.
   **Hecho cuando:** `python -m pytest tests/test_api_postgresql.py -q` omite con motivo visible los casos sin URL explícita, rechaza destinos no permitidos antes de escribir y, con la base temporal configurada, recupera cuatro mensajes del primer hilo y solo los correspondientes del segundo. No se añaden archivos Docker de despliegue.
 
-- [ ] **T17. Verificar HITL y rollback con PostgreSQL real.** Escribir primero los casos de aprobación manual, automática, último rechazo y error de segundo mensaje; después completar los dobles o fixtures necesarios sin cambiar la lógica del agente. (RF-08, RF-09, RF-10, RF-11, RF-12, RF-13, RF-14, RF-15, RF-23, RF-24)
+- [x] **T17. Verificar HITL y rollback con PostgreSQL real.** Escribir primero los casos de aprobación manual, automática, último rechazo y error de segundo mensaje; después completar los dobles o fixtures necesarios sin cambiar la lógica del agente. (RF-08, RF-09, RF-10, RF-11, RF-12, RF-13, RF-14, RF-15, RF-23, RF-24)
   **Depende de:** T16.
   **Hecho cuando:** los casos PostgreSQL de HITL y `tests/test_api_postgresql.py::test_rollback_postgresql` pasan; se comprueban rollback en hilo nuevo y existente, conservación de datos anteriores y una sola ejecución del agente por petición.
 
-- [ ] **T18. Verificar recuperación después de reiniciar la API.** Escribir primero una prueba con dos procesos Python independientes sobre la misma base; después completar el soporte de ejecución del test sin compartir estado del servicio. (RF-06, RF-19, RF-21)
+- [x] **T18. Verificar recuperación después de reiniciar la API.** Escribir primero una prueba con dos procesos Python independientes sobre la misma base; después completar el soporte de ejecución del test sin compartir estado del servicio. (RF-06, RF-19, RF-21)
   **Depende de:** T17.
   **Hecho cuando:** `tests/test_api_postgresql.py::test_historial_tras_reinicio_api` guarda desde un proceso, termina y recupera el mismo historial desde otro; el test diferencia ese historial persistido de un hilo solo conocido temporalmente y no afirma restaurar planes pendientes.
 
@@ -302,3 +302,24 @@ Regresión: **1403 passed, 18 skipped in 18.55s**. Sin APIs de pago, con dotenv 
 Cuatro tests nuevos verifican el mismo guardado con GrafoFalso y un doble del contrato real, sin LLM. Se conservan los seis campos públicos y done del agente.
 
 Regresión: **1407 passed, 18 skipped in 18.32s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T16 — 2026-11-15
+
+Cinco fallos previos por infraestructura de destino inexistente. Sin URL: 5 passed, 2 skipped. Con PostgreSQL temporal: varios turnos, aislamiento y UUID verificados. Un esquema aleatorio por caso, sin tocar tablas públicas.
+
+Regresión: **1414 passed, 18 skipped in 19.17s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T17 — 2026-11-15
+
+PostgreSQL real: aprobación manual y automática, rechazo final y parcial, decisión repetida y dos escenarios de rollback. Todos pasan con un esquema propio por caso.
+
+Regresión: **1420 passed, 18 skipped in 20.32s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T18 — 2026-11-15
+
+Dos procesos independientes guardan y recuperan historial en PostgreSQL. El hilo solo temporal desaparece tras reiniciar; no se promete recuperar planes pendientes.
+
+Regresión: **1421 passed, 18 skipped in 22.53s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
