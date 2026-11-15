@@ -39,3 +39,32 @@ def test_arranque_postgresql_obligatorio(entorno_api, monkeypatch, causa):
     with pytest.raises(RuntimeError, match="No se pudo preparar la persistencia"):
         with TestClient(app):
             pytest.fail("La API no debe servir con un arranque fallido")
+
+
+@pytest.mark.parametrize("url", [None, "sqlite://"])
+def test_arranque_rechaza_configuracion_real_en_otro_proceso(url):
+    import os
+    import subprocess
+    import sys
+
+    entorno = os.environ.copy()
+    entorno["PYTHON_DOTENV_DISABLED"] = "1"
+    if url is None:
+        entorno.pop("DATABASE_URL", None)
+    else:
+        entorno["DATABASE_URL"] = url
+    codigo = """
+from fastapi.testclient import TestClient
+from app import app
+import config
+try:
+    with TestClient(app):
+        raise AssertionError('Arranque inesperado con configuración inválida')
+except RuntimeError as error:
+    assert str(error) == config.API_ERROR_ARRANQUE_DB
+    print('arranque rechazado')
+"""
+    resultado = subprocess.run([sys.executable, "-c", codigo], env=entorno, capture_output=True,
+                               text=True, timeout=30)
+    assert resultado.returncode == 0, resultado.stderr
+    assert "arranque rechazado" in resultado.stdout

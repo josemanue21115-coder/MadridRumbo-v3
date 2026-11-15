@@ -15,6 +15,7 @@ import src.db as db
 from src.api import historial, servicio
 from src.api.esquemas import ApproveIn, AskIn, AskOut, MessageOut, ThreadId
 
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     """Prepara persistencia antes de servir y libera el contexto local al terminar."""

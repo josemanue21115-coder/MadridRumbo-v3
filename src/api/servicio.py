@@ -12,7 +12,7 @@ from sqlmodel import Session
 
 import config
 from src.api import historial
-from src.api.esquemas import ApproveIn, AskIn, AskOut
+from src.api.esquemas import ApproveIn, AskIn, AskOut, MessageOut
 from src.clientes.cargar import cargar_agente
 from src.clientes.contrato import estado_vacio
 from src.clientes.planes import ids_de_planes
@@ -29,7 +29,7 @@ _agente: Any = None
 _planes_pendientes: dict[str, list] = {}
 
 
-def obtener_historial(session: Session, thread_id: str):
+def obtener_historial(session: Session, thread_id: str) -> list[MessageOut]:
     """Distingue un hilo inexistente de uno conocido sin mensajes finalizados."""
     with _fallos_como_500():
         if not historial.es_hilo_conocido(session, thread_id):
@@ -100,10 +100,13 @@ def preguntar(datos: AskIn, session: Session) -> AskOut:
         agente = obtener_agente()
         resultado = agente.procesar_turno(estado_vacio(), datos.pregunta, thread_id)
         _recordar_plan(thread_id, resultado)
-        if _deducir_error(resultado) is None:
-            historial.registro_temporal.registrar_hilo(thread_id)
-            if resultado["hitl_pendiente"]:
-                historial.registro_temporal.guardar_pregunta(thread_id, datos.pregunta)
+        # La fachada real puede conservar el plan en un rechazo de control.
+        # No debe autoaprobarse ni tratarse como una pregunta aceptada nueva.
+        if _deducir_error(resultado) is not None:
+            return _a_respuesta(resultado, thread_id)
+        historial.registro_temporal.registrar_hilo(thread_id)
+        if resultado["hitl_pendiente"]:
+            historial.registro_temporal.guardar_pregunta(thread_id, datos.pregunta)
 
         # Aprobación automática: solo si se pide, hay un plan esperando y es uno único.
         # Con varios planes la API no elige por la persona (RF-9).
@@ -140,6 +143,8 @@ def aprobar(datos: ApproveIn, session: Session) -> AskOut:
         _recordar_plan(datos.thread_id, resultado)
         rechazo_final = not datos.aprobado and not ids_de_planes(resultado["plan"])
         if (resultado["done"] or rechazo_final) and not resultado["hitl_pendiente"] and _deducir_error(resultado) is None:
-            _guardar_turno(session, datos.thread_id,
-                          historial.registro_temporal.obtener_pregunta(datos.thread_id), resultado["respuesta"])
+            _guardar_turno(
+                session, datos.thread_id,
+                historial.registro_temporal.obtener_pregunta(datos.thread_id), resultado["respuesta"],
+            )
         return _a_respuesta(resultado, datos.thread_id)

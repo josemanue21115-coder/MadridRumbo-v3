@@ -1,7 +1,7 @@
 # Tareas — Spec 016
 
 > Basadas en la especificación y el plan aprobados el 2026-11-15.
-> Estado: tareas completadas hasta T18; ver evidencias por incremento.
+> Estado: T1–T18 completadas. T19 preparada técnicamente; T19/T20 pendientes de revisión conjunta API/frontend.
 > Una tarea cada vez. Tests primero. Marcar `[x]` solo después de verificarla.
 
 ## Reglas de ejecución
@@ -323,3 +323,25 @@ Regresión: **1420 passed, 18 skipped in 20.32s**. Sin APIs de pago, con dotenv 
 Dos procesos independientes guardan y recuperan historial en PostgreSQL. El hilo solo temporal desaparece tras reiniciar; no se promete recuperar planes pendientes.
 
 Regresión: **1421 passed, 18 skipped in 22.53s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+## Avance técnico T19 y validación parcial T20 — 2026-11-15
+
+La documentación de README está actualizada y se ejecutaron tres recorridos
+AppTest con el frontend existente de SPEC-015: aprobación, rechazo y automática,
+seguido de nueva conversación y recarga del historial. Se sustituyó solo el
+transporte HTTP por la API en proceso; no se modificó la rama del frontend.
+
+En la revisión final se detectó y corrigió un rechazo de control del agente real
+que conservaba el plan: ya no puede provocar una autoaprobación. El test nuevo
+falló antes de aplicar la salida inmediata. También se comprobaron configuraciones
+de arranque inválidas en procesos reales.
+
+Resultado final desde el proyecto real: **1427 passed, 18 skipped in 31.12s**,
+con PostgreSQL real y frontend activados. JUnit local en
+`output/spec016-20261115/pytest.xml`: 1445 casos, 14 de PostgreSQL (5 protecciones
+de destino y 9 casos de integración) y 3 de frontend. No se usaron APIs de pago.
+Contenedor y volúmenes temporales eliminados tras comprobar cero esquemas restantes.
+
+El responsable confirmó que falta revisar el contrato con sus compañeros de API
+y frontend. T19 y T20 permanecen pendientes y `validacion.md` tiene veredicto
+**Parcial**, sin dar por realizada esa revisión. No se hizo commit ni push.

@@ -57,13 +57,15 @@ def test_pendiente_no_guarda_y_conserva_historial_previo(cliente_api):
     assert mensajes(cliente_api, "otro") == antes
 
 
-def test_rechazo_control_conserva_historial_y_pregunta(cliente_api, monkeypatch):
+@pytest.mark.parametrize("mantiene_plan", [False, True])
+def test_rechazo_control_conserva_historial_y_pregunta(cliente_api, monkeypatch, mantiene_plan):
     from src.api import historial, servicio
 
     preguntar(cliente_api, pregunta="Ruta original de Sol a Atocha", auto_aprobar=False)
     def rechazar(*args):
-        return {"respuesta": "Resuelve el plan pendiente", "done": False, "hitl_pendiente": False,
-                "plan": [], "traza": [], "log": [{"tipo": "control", "resultado": "rechazado"}]}
+        return {"respuesta": "Resuelve el plan pendiente", "done": False, "hitl_pendiente": mantiene_plan,
+                "plan": servicio._planes_pendientes["hilo"] if mantiene_plan else [],
+                "traza": [], "log": [{"tipo": "control", "resultado": "rechazado"}]}
     monkeypatch.setattr(servicio._agente, "procesar_turno", rechazar)
     respuesta = preguntar(cliente_api, pregunta="No debe sustituir la pregunta original")
     assert respuesta.json()["error"]

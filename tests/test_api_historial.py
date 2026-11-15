@@ -5,6 +5,7 @@ from uuid import UUID
 import pytest
 from sqlalchemy import event
 
+import config
 from src.api import servicio
 
 
@@ -277,7 +278,7 @@ def test_lectura_fallida_500(cliente_api, monkeypatch, operacion):
     monkeypatch.setattr(historial, operacion, fallo)
     respuesta = cliente_api.get("/threads/conocido/messages")
     assert respuesta.status_code == 500
-    assert respuesta.json() == {"detail": __import__("config").API_ERROR_INTERNO}
+    assert respuesta.json() == {"detail": config.API_ERROR_INTERNO}
     assert "SQL" not in respuesta.text
 
 
