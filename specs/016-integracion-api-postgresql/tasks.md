@@ -1,7 +1,7 @@
 # Tareas — Spec 016
 
 > Basadas en la especificación y el plan aprobados el 2026-11-15.
-> Estado: T1 y T2 completadas y verificadas el 2026-11-15; T3 a T20 pendientes.
+> Estado: T1, T2 y T3 completadas y verificadas el 2026-11-15; T4 a T20 pendientes.
 > Una tarea cada vez. Tests primero. Marcar `[x]` solo después de verificarla.
 
 ## Reglas de ejecución
@@ -24,7 +24,7 @@
   **Depende de:** T1.
   **Hecho cuando:** `tests/test_api_historial.py::test_thread_invalido_422_sin_consultas` pasa con espacios, vacío cuando la ruta admita recibirlo, 128 y 129 caracteres; los contadores de consultas y agente permanecen en cero ante entradas inválidas. La ruta sin segmento conserva su 404 de enrutamiento.
 
-- [ ] **T3. Crear el registro temporal y la conversión del historial.** Probar primero reconocimiento de hilo, conservación de pregunta original, limpieza y orden público; después crear el adaptador de API reutilizando modelos y funciones SPEC-014. (RF-02, RF-03, RF-04, RF-06)
+- [x] **T3. Crear el registro temporal y la conversión del historial.** Probar primero reconocimiento de hilo, conservación de pregunta original, limpieza y orden público; después crear el adaptador de API reutilizando modelos y funciones SPEC-014. (RF-02, RF-03, RF-04, RF-06)
   **Depende de:** T1, T2.
   **Hecho cuando:** `tests/test_api_historial.py::test_campos_publicos_historial`, `test_orden_consecutivo_con_ids_intercalados` y `test_hilos_separados` pasan, junto con una prueba de limpieza del registro temporal, sin cambiar los contratos de SPEC-014.
 
@@ -114,7 +114,7 @@
 Los 24 requisitos aparecen en tareas anteriores al cierre; no falta ninguno.
 Las dependencias permiten una suite verde tras cada incremento, aunque los
 requisitos de la funcionalidad solo queden completos al terminar sus tareas.
-T1 y T2 están completadas; las tareas restantes no están iniciadas.
+T1, T2 y T3 están completadas; las tareas restantes no están iniciadas.
 
 ## Evidencias de T1 — 2026-11-15
 
@@ -182,3 +182,39 @@ T2 cubre RF-18 y conserva el contrato público de RF-20. Los identificadores vá
 todavía llegan al 501 existente de historial: sustituirlo por lectura corresponde
 a T4. No se implementó T3 ni se modificaron las funciones del agente o la capa de
 persistencia. No se hizo `git add`, commit, push ni cambios en PR.
+
+## Evidencias de T3 — 2026-11-15
+
+Se creó `src/api/historial.py`. `RegistroTemporal` reconoce los hilos del proceso,
+conserva la primera pregunta de cada turno pendiente, permite liberarla al finalizar
+el turno y ofrece limpieza explícita del estado. Cada instancia tiene colecciones
+propias. Finalizar un turno mantiene el hilo conocido y permite recordar la
+pregunta del siguiente; limpiar elimina tanto las preguntas como los hilos temporales.
+
+`es_hilo_conocido()` consulta la existencia persistida o el registro temporal sin
+crear conversaciones. `leer_historial()` reutiliza `get_thread_messages()` de
+SPEC-014 y genera `MessageOut` con `role`, `content` y un `orden` consecutivo desde
+1 por hilo. No cambia los mensajes originales ni los contratos de SPEC-014.
+
+Las fixtures de API sustituyen el registro temporal por una instancia nueva en
+cada caso. Se amplió la prueba existente de aislamiento para detectar hilos o
+preguntas heredados. Se añadieron nueve casos de T3 en `tests/test_api_historial.py`,
+incluido reconocimiento de una conversación persistida vacía y consultas que no
+crean filas. Se comprobó la conversión de ids 1, 2, 5 y 6 en órdenes 1, 2, 3 y 4.
+
+| Comando / comprobación | Resultado real |
+|---|---|
+| `python -m pytest tests/test_api_historial.py -q -p no:cacheprovider -o addopts='' --tb=short`, antes de implementar | 29 passed, 9 errors in 3.79s: los nueve casos nuevos no podían importar el adaptador inexistente. |
+| `python -m pytest tests/test_api_historial.py tests/test_api_aislamiento.py tests/test_history.py -q -p no:cacheprovider -o addopts='' --tb=short` | 46 passed in 2.76s. |
+| `python -m pytest -q -p no:cacheprovider -o addopts='' --tb=short` | 1366 passed, 18 skipped in 27.77s. |
+| `git diff --check` | Sin errores. |
+
+Se usó `.venv`, `PYTHON_DOTENV_DISABLED=1` y SQLite en memoria. La suite global
+recibió valores ficticios de EMT para sus dobles. No se ejecutó PostgreSQL real;
+las 18 omisiones conservan los motivos documentados en T1.
+
+T3 verifica el adaptador de apoyo a RF-02, RF-03, RF-04 y RF-06. Las rutas y el
+servicio todavía no usan este registro para tramitar turnos: esa conexión se
+realizará en las tareas posteriores. La ruta de historial válida conserva su
+501 hasta T4. No se modificaron el agente, el frontend ni la capa de SPEC-014.
+No se hizo `git add`, commit, push ni cambios en PR; T4 no se ha iniciado.

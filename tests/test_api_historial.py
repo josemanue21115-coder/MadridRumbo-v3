@@ -1,4 +1,4 @@
-"""SPEC-016 T2: validación de identificadores previa al agente y a SQL."""
+"""SPEC-016 T2/T3: identificadores, contexto temporal y formato del historial."""
 from urllib.parse import quote
 from uuid import UUID
 
@@ -6,6 +6,139 @@ import pytest
 from sqlalchemy import event
 
 from src.api import servicio
+
+
+@pytest.fixture
+def adaptador_historial():
+    # El módulo se importa aquí para mantener ejecutables los casos anteriores de T2.
+    from src.api import historial
+
+    return historial
+
+
+def test_registro_conserva_pregunta_original_y_aisla_hilos(adaptador_historial):
+    registro = adaptador_historial.RegistroTemporal()
+    registro.guardar_pregunta("uno", "Pregunta original")
+    registro.guardar_pregunta("dos", "Pregunta diferente")
+    registro.guardar_pregunta("uno", "Otra pregunta que no debe sustituirla")
+    assert registro.conoce_hilo("uno")
+    assert registro.conoce_hilo("dos")
+    assert not registro.conoce_hilo("desconocido")
+    assert registro.obtener_pregunta("uno") == "Pregunta original"
+    assert registro.obtener_pregunta("dos") == "Pregunta diferente"
+    assert registro.obtener_pregunta("desconocido") is None
+
+
+def test_registro_finaliza_turno_sin_olvidar_hilo(adaptador_historial):
+    registro = adaptador_historial.RegistroTemporal()
+    registro.guardar_pregunta("uno", "Primera")
+    registro.guardar_pregunta("dos", "Ajena")
+    registro.finalizar_turno("uno")
+    assert registro.conoce_hilo("uno")
+    assert registro.obtener_pregunta("uno") is None
+    assert registro.obtener_pregunta("dos") == "Ajena"
+    registro.guardar_pregunta("uno", "Siguiente turno")
+    assert registro.obtener_pregunta("uno") == "Siguiente turno"
+    registro.finalizar_turno("desconocido")
+    assert not registro.conoce_hilo("desconocido")
+
+
+def test_registro_temporal_limpia_estado(adaptador_historial):
+    registro = adaptador_historial.RegistroTemporal()
+    registro.guardar_pregunta("pendiente", "Pregunta")
+    registro.registrar_hilo("sin-pregunta")
+    otro = adaptador_historial.RegistroTemporal()
+    assert not otro.conoce_hilo("pendiente")
+    otro.guardar_pregunta("otro", "Pregunta ajena")
+    registro.limpiar()
+    registro.limpiar()
+    assert not registro.conoce_hilo("pendiente")
+    assert not registro.conoce_hilo("sin-pregunta")
+    assert registro.obtener_pregunta("pendiente") is None
+    assert otro.obtener_pregunta("otro") == "Pregunta ajena"
+
+
+def test_campos_publicos_historial(adaptador_historial, sesiones_api):
+    from src.history import get_thread_messages, save_closed_turn
+
+    with sesiones_api() as sesion:
+        save_closed_turn(sesion, "uno", "¿Pregunta?", "Respuesta con ñ")
+        originales = get_thread_messages(sesion, "uno")
+        datos_previos = [m.model_dump() for m in originales]
+        mensajes = adaptador_historial.leer_historial(sesion, "uno")
+        assert [m.model_dump() for m in mensajes] == [
+            {"role": "user", "content": "¿Pregunta?", "orden": 1},
+            {"role": "assistant", "content": "Respuesta con ñ", "orden": 2},
+        ]
+        assert [m.model_dump() for m in originales] == datos_previos
+
+
+def test_orden_consecutivo_con_ids_intercalados(adaptador_historial, sesiones_api):
+    from src.history import get_thread_messages, save_closed_turn
+
+    with sesiones_api() as sesion:
+        save_closed_turn(sesion, "uno", "Pregunta 1", "Respuesta 1")
+        save_closed_turn(sesion, "dos", "Pregunta ajena", "Respuesta ajena")
+        save_closed_turn(sesion, "uno", "Pregunta 2", "Respuesta 2")
+        assert [m.id for m in get_thread_messages(sesion, "uno")] == [1, 2, 5, 6]
+        mensajes = adaptador_historial.leer_historial(sesion, "uno")
+        assert [m.orden for m in mensajes] == [1, 2, 3, 4]
+        assert [m.content for m in mensajes] == ["Pregunta 1", "Respuesta 1", "Pregunta 2", "Respuesta 2"]
+
+
+def test_hilos_separados(adaptador_historial, sesiones_api):
+    from src.history import save_closed_turn
+
+    with sesiones_api() as sesion:
+        save_closed_turn(sesion, "uno", "Pregunta uno", "Respuesta uno")
+        save_closed_turn(sesion, "dos", "Pregunta dos", "Respuesta dos")
+        assert [m.content for m in adaptador_historial.leer_historial(sesion, "uno")] == [
+            "Pregunta uno", "Respuesta uno",
+        ]
+        assert [m.content for m in adaptador_historial.leer_historial(sesion, "dos")] == [
+            "Pregunta dos", "Respuesta dos",
+        ]
+
+
+def test_hilo_conocido_temporal_no_crea_filas(adaptador_historial, sesiones_api, entorno_api):
+    from sqlmodel import select
+
+    from src.models import Conversation, Message
+
+    registro = adaptador_historial.registro_temporal
+    registro.guardar_pregunta("pendiente", "Pregunta pendiente")
+    with sesiones_api() as sesion:
+        assert adaptador_historial.es_hilo_conocido(sesion, "pendiente")
+        assert adaptador_historial.leer_historial(sesion, "pendiente") == []
+        assert sesion.exec(select(Conversation)).all() == []
+        assert sesion.exec(select(Message)).all() == []
+
+
+def test_hilo_persistido_es_conocido_sin_registro_temporal(adaptador_historial, sesiones_api, entorno_api):
+    from src.history import save_closed_turn
+    from src.models import Conversation
+
+    with sesiones_api() as sesion:
+        save_closed_turn(sesion, "guardado", "Pregunta", "Respuesta")
+        sesion.add(Conversation(thread_id="vacio"))
+        sesion.commit()
+        assert not adaptador_historial.registro_temporal.conoce_hilo("guardado")
+        assert adaptador_historial.es_hilo_conocido(sesion, "guardado")
+        assert adaptador_historial.es_hilo_conocido(sesion, "vacio")
+        assert adaptador_historial.leer_historial(sesion, "vacio") == []
+
+
+def test_hilo_desconocido_no_crea_filas(adaptador_historial, sesiones_api, entorno_api):
+    from sqlmodel import select
+
+    from src.models import Conversation, Message
+
+    with sesiones_api() as sesion:
+        assert not adaptador_historial.es_hilo_conocido(sesion, "inexistente")
+        assert adaptador_historial.leer_historial(sesion, "inexistente") == []
+        assert not adaptador_historial.registro_temporal.conoce_hilo("inexistente")
+        assert sesion.exec(select(Conversation)).all() == []
+        assert sesion.exec(select(Message)).all() == []
 
 
 @pytest.fixture

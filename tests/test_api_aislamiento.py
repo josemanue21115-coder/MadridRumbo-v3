@@ -2,7 +2,7 @@
 import pytest
 from sqlmodel import select
 
-from src.api import servicio
+from src.api import historial, servicio
 from src.history import get_thread_messages, save_closed_turn
 from src.models import Conversation, Message
 
@@ -12,6 +12,9 @@ def test_estado_api_no_se_comparte_entre_casos(cliente_api, caso):
     # Cada caso deja un plan; el siguiente debe empezar sin él y sin llamadas previas.
     assert servicio._planes_pendientes == {}
     assert servicio._agente is None
+    assert not historial.registro_temporal.conoce_hilo("hilo-aislamiento")
+    assert historial.registro_temporal.obtener_pregunta("hilo-aislamiento") is None
+    historial.registro_temporal.guardar_pregunta("hilo-aislamiento", "Pregunta pendiente de este caso")
     respuesta = cliente_api.post(
         "/ask",
         json={"pregunta": "Ruta de Sol a Atocha", "thread_id": "hilo-aislamiento", "auto_aprobar": False},

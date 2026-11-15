@@ -55,11 +55,12 @@ def entorno_api(monkeypatch, motor_api, sesiones_api):
     import config
     import src.db as db
     from app import app
-    from src.api import servicio
+    from src.api import historial, servicio
 
     monkeypatch.setenv(config.VARIABLE_MODO_SIMULADO, config.VALOR_MODO_SIMULADO)
     monkeypatch.setattr(servicio, "_agente", None)
     monkeypatch.setattr(servicio, "_planes_pendientes", {})
+    monkeypatch.setattr(historial, "registro_temporal", historial.RegistroTemporal())
     monkeypatch.setattr(db, "get_engine", lambda: motor_api)
     # Doble explícito para el futuro lifespan; no se conecta a PostgreSQL.
     monkeypatch.setattr(db, "create_db_and_tables", lambda: SQLModel.metadata.create_all(motor_api))
