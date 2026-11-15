@@ -1,7 +1,7 @@
 # Tareas — Spec 016
 
 > Basadas en la especificación y el plan aprobados el 2026-11-15.
-> Estado: tareas completadas hasta T11; ver evidencias por incremento.
+> Estado: tareas completadas hasta T15; ver evidencias por incremento.
 > Una tarea cada vez. Tests primero. Marcar `[x]` solo después de verificarla.
 
 ## Reglas de ejecución
@@ -60,19 +60,19 @@
   **Depende de:** T10.
   **Hecho cuando:** `tests/test_api_persistencia.py::test_rechazo_control_conserva_historial_y_pregunta` y `test_approve_repetido_no_duplica` pasan tanto después de aprobación como de rechazo terminal. Esta tarea no añade deduplicación general de reenvíos de `/ask`.
 
-- [ ] **T12. Verificar atomicidad y errores de escritura.** Escribir primero pruebas que rechacen el segundo mensaje con y sin turnos previos; después ajustar únicamente el manejo API necesario para reutilizar el rollback de SPEC-014 y devolver 500 genérico. (RF-13, RF-14, RF-15)
+- [x] **T12. Verificar atomicidad y errores de escritura.** Escribir primero pruebas que rechacen el segundo mensaje con y sin turnos previos; después ajustar únicamente el manejo API necesario para reutilizar el rollback de SPEC-014 y devolver 500 genérico. (RF-13, RF-14, RF-15)
   **Depende de:** T11.
   **Hecho cuando:** `tests/test_api_persistencia.py::test_fallo_segundo_mensaje_revierte_turno`, `test_guardado_fallido_500_sin_detalles` y `test_200_solo_despues_del_commit` pasan, sin filas del turno fallido ni pérdida del historial anterior.
 
-- [ ] **T13. Aplicar la política de fallo sin repetir el agente.** Escribir primero pruebas con contador de llamadas, respuesta final vacía y contexto original ausente; después completar el tratamiento de error y limpieza del contexto terminal previsto en el plan. (RF-14, RF-15, RF-24)
+- [x] **T13. Aplicar la política de fallo sin repetir el agente.** Escribir primero pruebas con contador de llamadas, respuesta final vacía y contexto original ausente; después completar el tratamiento de error y limpieza del contexto terminal previsto en el plan. (RF-14, RF-15, RF-24)
   **Depende de:** T12.
   **Hecho cuando:** `tests/test_api_persistencia.py::test_fallo_commit_no_repite_agente` pasa y los nuevos casos de respuesta vacía y contexto ausente devuelven 500 sin pares incompletos, sin segunda invocación del agente ni aprobación ficticia pendiente después del cierre.
 
-- [ ] **T14. Hacer obligatoria la preparación de PostgreSQL al arrancar.** Escribir primero tests del lifespan correcto y de configuración, conexión o creación de tablas fallidas; después integrar el arranque y cierre de recursos en la API. (RF-22)
+- [x] **T14. Hacer obligatoria la preparación de PostgreSQL al arrancar.** Escribir primero tests del lifespan correcto y de configuración, conexión o creación de tablas fallidas; después integrar el arranque y cierre de recursos en la API. (RF-22)
   **Depende de:** T1, T13.
   **Hecho cuando:** `tests/test_api_arranque.py::test_arranque_postgresql_obligatorio` pasa con todos esos casos usando `TestClient` como contexto; el arranque fallido no sirve peticiones y la regresión API usa su base sustituida explícita.
 
-- [ ] **T15. Verificar contratos y modos del agente.** Escribir primero pruebas parametrizadas para agente simulado y doble del contrato real; después corregir solo incompatibilidades de integración detectadas, si aparecen. (RF-20, RF-21)
+- [x] **T15. Verificar contratos y modos del agente.** Escribir primero pruebas parametrizadas para agente simulado y doble del contrato real; después corregir solo incompatibilidades de integración detectadas, si aparecen. (RF-20, RF-21)
   **Depende de:** T14.
   **Hecho cuando:** `tests/test_api_persistencia.py::test_respuestas_conservan_contrato_013` y `test_persistencia_independiente_del_modo` pasan con los mismos campos y reglas de guardado, sin ejecutar un LLM, tools de transporte ni embeddings reales.
 
@@ -274,3 +274,31 @@ Regresión: **1384 passed, 18 skipped in 17.48s**. Sin APIs de pago, con dotenv 
 Cinco tests nuevos ya cubiertos por las guardas existentes: repetir decisiones o seleccionar mal no duplica ni sobrescribe el turno.
 
 Regresión: **1389 passed, 18 skipped in 18.25s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T12 — 2026-11-15
+
+Tests HTTP nuevos verifican el rollback existente: falla el segundo mensaje y no queda turno parcial ni se pierden turnos previos. También se fuerza error de commit y se verifica 500 genérico.
+
+Regresión: **1392 passed, 18 skipped in 18.27s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T13 — 2026-11-15
+
+Siete tests nuevos verifican la política ya implementada: no repetir agente tras fallo, no inventar pregunta, no guardar respuestas vacías y limpiar contexto terminal.
+
+Regresión: **1399 passed, 18 skipped in 18.41s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T14 — 2026-11-15
+
+Cuatro fallos previos. Lifespan prepara tablas, aborta arranque fallido con error genérico y limpia estado y motor al cerrar.
+
+Regresión: **1403 passed, 18 skipped in 18.55s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T15 — 2026-11-15
+
+Cuatro tests nuevos verifican el mismo guardado con GrafoFalso y un doble del contrato real, sin LLM. Se conservan los seis campos públicos y done del agente.
+
+Regresión: **1407 passed, 18 skipped in 18.32s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.

@@ -239,6 +239,7 @@ FRASE_ABSTENCION = "No lo sé, no está en los documentos."
 # Límite de los identificadores recibidos por la API (spec 016, T2).
 API_THREAD_ID_MAX_LENGTH = 128
 API_CONVERSACION_NO_ENCONTRADA = "Conversación no encontrada"
+API_ERROR_ARRANQUE_DB = "No se pudo preparar la persistencia PostgreSQL. Revisa la configuración y la conexión."
 
 # Texto que se devuelve en `error` cuando el agente rechaza una consulta sin dar motivo.
 API_AVISO_RECHAZO_GENERICO = "El agente no ha podido procesar la consulta."

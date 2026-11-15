@@ -5,19 +5,41 @@ Se arranca con: uvicorn app:app
 La documentación interactiva queda disponible en /docs.
 """
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
 from sqlmodel import Session
 
 import config
 import src.db as db
-from src.api import servicio
+from src.api import historial, servicio
 from src.api.esquemas import ApproveIn, AskIn, AskOut, MessageOut, ThreadId
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Prepara persistencia antes de servir y libera el contexto local al terminar."""
+    historial.registro_temporal.limpiar()
+    servicio._planes_pendientes.clear()
+    servicio._agente = None
+    try:
+        db.create_db_and_tables()
+        motor = db.get_engine()
+    except Exception:
+        raise RuntimeError(config.API_ERROR_ARRANQUE_DB) from None
+    try:
+        yield
+    finally:
+        historial.registro_temporal.limpiar()
+        servicio._planes_pendientes.clear()
+        servicio._agente = None
+        motor.dispose()
+
 
 app = FastAPI(
     title="MadridRumbo API",
     description="Asistente de transporte público de Madrid: preguntas al agente y aprobación de planes.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Respuesta documentada para los fallos inesperados del agente.
