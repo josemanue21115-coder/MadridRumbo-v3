@@ -1,7 +1,7 @@
 # Tareas — Spec 016
 
 > Basadas en la especificación y el plan aprobados el 2026-11-15.
-> Estado: tareas completadas hasta T5; ver evidencias por incremento.
+> Estado: tareas completadas hasta T11; ver evidencias por incremento.
 > Una tarea cada vez. Tests primero. Marcar `[x]` solo después de verificarla.
 
 ## Reglas de ejecución
@@ -36,27 +36,27 @@
   **Depende de:** T4.
   **Hecho cuando:** `tests/test_api_historial.py::test_lectura_fallida_500` pasa con detalle genérico, el error no aparece como lista vacía ni 404 y el test de hilo desconocido sigue devolviendo 404.
 
-- [ ] **T6. Guardar respuestas directas de `/ask`.** Escribir primero la prueba de un turno finalizado y la del identificador generado; después conectar el guardado atómico antes de devolver éxito. (RF-07, RF-15, RF-17, RF-20)
+- [x] **T6. Guardar respuestas directas de `/ask`.** Escribir primero la prueba de un turno finalizado y la del identificador generado; después conectar el guardado atómico antes de devolver éxito. (RF-07, RF-15, RF-17, RF-20)
   **Depende de:** T3, T5.
   **Hecho cuando:** `tests/test_api_persistencia.py::test_ask_directo_guarda_par`, `test_uuid_devuelto_es_el_persistido` y `test_200_solo_despues_del_commit` pasan; el historial devuelve exactamente pregunta y respuesta bajo el identificador público.
 
-- [ ] **T7. Conservar la pregunta mientras haya planes pendientes.** Escribir primero pruebas de espera, varios planes y rechazo de control sobre un hilo pendiente; después enlazar el registro temporal con el estado que ya conserva la API. (RF-06, RF-08, RF-11)
+- [x] **T7. Conservar la pregunta mientras haya planes pendientes.** Escribir primero pruebas de espera, varios planes y rechazo de control sobre un hilo pendiente; después enlazar el registro temporal con el estado que ya conserva la API. (RF-06, RF-08, RF-11)
   **Depende de:** T6.
   **Hecho cuando:** el caso de espera de `tests/test_api_persistencia.py::test_pendiente_y_rechazo_parcial_no_guardan` pasa y `test_rechazo_control_conserva_historial_y_pregunta` confirma que la pregunta original no se sobrescribe; un hilo nuevo pendiente devuelve 200 vacío y uno con historial previo conserva sus mensajes.
 
-- [ ] **T8. Guardar el cierre por aprobación manual.** Escribir primero la prueba de aprobación con pregunta original, incluida selección tras varios planes; después guardar el par final y liberar el contexto del turno cerrado. (RF-09, RF-15, RF-20)
+- [x] **T8. Guardar el cierre por aprobación manual.** Escribir primero la prueba de aprobación con pregunta original, incluida selección tras varios planes; después guardar el par final y liberar el contexto del turno cerrado. (RF-09, RF-15, RF-20)
   **Depende de:** T7.
   **Hecho cuando:** `tests/test_api_persistencia.py::test_approve_guarda_pregunta_original` pasa sin guardar el texto de la decisión como pregunta y conserva los indicadores devueltos por el agente.
 
-- [ ] **T9. Cubrir la aprobación automática.** Escribir primero el caso automático y el caso de varios planes sin elección automática; después conectar el mismo cierre de persistencia al resultado final de `/ask`. (RF-08, RF-10, RF-20)
+- [x] **T9. Cubrir la aprobación automática.** Escribir primero el caso automático y el caso de varios planes sin elección automática; después conectar el mismo cierre de persistencia al resultado final de `/ask`. (RF-08, RF-10, RF-20)
   **Depende de:** T8.
   **Hecho cuando:** `tests/test_api_persistencia.py::test_autoaprobar_guarda_un_solo_par` y la regresión `tests/test_api_autoaprobar.py` pasan; se guardan dos mensajes en el cierre automático y ninguno mientras haya varios planes pendientes.
 
-- [ ] **T10. Guardar el rechazo del último plan.** Escribir primero pruebas de rechazo parcial y terminal; después cerrar el turno de historial cuando no queden planes, respetando `done=false`. (RF-08, RF-23)
+- [x] **T10. Guardar el rechazo del último plan.** Escribir primero pruebas de rechazo parcial y terminal; después cerrar el turno de historial cuando no queden planes, respetando `done=false`. (RF-08, RF-23)
   **Depende de:** T8, T9.
   **Hecho cuando:** `tests/test_api_persistencia.py::test_pendiente_y_rechazo_parcial_no_guardan` y `test_ultimo_rechazo_guarda_par_con_done_false` pasan; el rechazo parcial no escribe y el último rechazo guarda un único par con la pregunta original.
 
-- [ ] **T11. Evitar escrituras ante decisiones inválidas o repetidas.** Escribir primero pruebas de ausencia de plan, selección incorrecta y aprobación repetida después del cierre; después completar las guardas sin alterar el historial ni el contexto pendiente válido. (RF-11, RF-12)
+- [x] **T11. Evitar escrituras ante decisiones inválidas o repetidas.** Escribir primero pruebas de ausencia de plan, selección incorrecta y aprobación repetida después del cierre; después completar las guardas sin alterar el historial ni el contexto pendiente válido. (RF-11, RF-12)
   **Depende de:** T10.
   **Hecho cuando:** `tests/test_api_persistencia.py::test_rechazo_control_conserva_historial_y_pregunta` y `test_approve_repetido_no_duplica` pasan tanto después de aprobación como de rechazo terminal. Esta tarea no añade deduplicación general de reenvíos de `/ask`.
 
@@ -232,3 +232,45 @@ Regresión: **1369 passed, 18 skipped in 22.12s**. Sin APIs de pago, con dotenv 
 Pruebas previas: cuatro fallos. Se conserva HTTPException y se transforman errores inesperados de lectura en 500 genérico.
 
 Regresión: **1373 passed, 18 skipped in 17.67s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T6 — 2026-11-15
+
+Tres fallos previos: no existían mensajes ni commit. Guardado del par directo con el UUID público y confirmación solo tras commit.
+
+Regresión: **1376 passed, 18 skipped in 17.85s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T7 — 2026-11-15
+
+Dos fallos previos. Un hilo pendiente devuelve 200 vacío; se conserva la pregunta ante un rechazo de control y se mantiene el historial previo.
+
+Regresión: **1378 passed, 18 skipped in 26.75s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T8 — 2026-11-15
+
+Dos fallos previos de aprobación manual. Guardado con pregunta original y liberación del contexto al cerrar.
+
+Regresión: **1380 passed, 18 skipped in 18.30s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T9 — 2026-11-15
+
+Dos tests nuevos; ya pasan con el flujo común implementado en T6-T8. No se añadió código redundante: autoaprobación genera un par y varios planes siguen pendientes.
+
+Regresión: **1382 passed, 18 skipped in 18.86s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T10 — 2026-11-15
+
+Dos fallos previos. El rechazo parcial no escribe; el rechazo final conserva done=false y guarda pregunta original y respuesta.
+
+Regresión: **1384 passed, 18 skipped in 17.48s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.
+
+
+## Evidencias de T11 — 2026-11-15
+
+Cinco tests nuevos ya cubiertos por las guardas existentes: repetir decisiones o seleccionar mal no duplica ni sobrescribe el turno.
+
+Regresión: **1389 passed, 18 skipped in 18.25s**. Sin APIs de pago, con dotenv deshabilitado y EMT ficticia. Cambios locales, sin commit ni push.

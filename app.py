@@ -37,23 +37,23 @@ def health() -> dict:
 
 
 @app.post("/ask", response_model=AskOut, tags=["Agente"], responses=ERROR_500)
-def ask(datos: AskIn) -> AskOut:
+def ask(datos: AskIn, session: Session = Depends(db.get_session)) -> AskOut:
     """Envía una pregunta al agente y devuelve su respuesta.
 
     Si no se indica `thread_id`, se crea una conversación nueva. Una pregunta vacía da error 422.
     Con `auto_aprobar` activo, un plan único se aprueba solo; con varios planes, se devuelven pendientes.
     """
-    return servicio.preguntar(datos)
+    return servicio.preguntar(datos, session)
 
 
 @app.post("/approve", response_model=AskOut, tags=["Agente"], responses=ERROR_500)
-def approve(datos: ApproveIn) -> AskOut:
+def approve(datos: ApproveIn, session: Session = Depends(db.get_session)) -> AskOut:
     """Aprueba o rechaza el plan pendiente de una conversación.
 
     `plan_id` solo es necesario cuando hay varios planes pendientes.
     Si no hay plan pendiente, el aviso llega en el campo `error`.
     """
-    return servicio.aprobar(datos)
+    return servicio.aprobar(datos, session)
 
 
 @app.get(
