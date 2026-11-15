@@ -236,6 +236,9 @@ PREGUNTA_PRECIO_CON_ZONA = "Tarifa y precio del {titulo} {zona}"
 FRASE_ABSTENCION = "No lo sé, no está en los documentos."
 
 # --- API (spec 013) ---
+# Límite de los identificadores recibidos por la API (spec 016, T2).
+API_THREAD_ID_MAX_LENGTH = 128
+
 # Texto que se devuelve en `error` cuando el agente rechaza una consulta sin dar motivo.
 API_AVISO_RECHAZO_GENERICO = "El agente no ha podido procesar la consulta."
 

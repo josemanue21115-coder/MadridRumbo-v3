@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException
 
 import config
 from src.api import servicio
-from src.api.esquemas import ApproveIn, AskIn, AskOut, MessageOut
+from src.api.esquemas import ApproveIn, AskIn, AskOut, MessageOut, ThreadId
 
 app = FastAPI(
     title="MadridRumbo API",
@@ -60,7 +60,7 @@ def approve(datos: ApproveIn) -> AskOut:
     tags=["Historial"],
     responses={501: {"description": "Todavía no implementada: depende del historial en base de datos."}},
 )
-def messages(thread_id: str) -> list[MessageOut]:
+def messages(thread_id: ThreadId) -> list[MessageOut]:
     """Devuelve los mensajes de una conversación (role, content, orden).
 
     Ruta reservada: la implementa quien se encarga de la base de datos.

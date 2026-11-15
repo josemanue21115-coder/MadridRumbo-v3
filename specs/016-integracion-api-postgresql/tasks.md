@@ -1,7 +1,7 @@
 # Tareas — Spec 016
 
 > Basadas en la especificación y el plan aprobados el 2026-11-15.
-> Estado: T1 completada y verificada el 2026-11-15; T2 a T20 pendientes.
+> Estado: T1 y T2 completadas y verificadas el 2026-11-15; T3 a T20 pendientes.
 > Una tarea cada vez. Tests primero. Marcar `[x]` solo después de verificarla.
 
 ## Reglas de ejecución
@@ -20,7 +20,7 @@
   **Depende de:** especificación y plan aprobados.
   **Hecho cuando:** `python -m pytest tests/test_api_ask.py tests/test_api_aprobacion.py tests/test_api_autoaprobar.py tests/test_api_rutas.py tests/test_api_errores.py -q` pasa sin PostgreSQL ni HTTP real y la prueba nueva confirma que dos casos no comparten datos o estado residual.
 
-- [ ] **T2. Validar los identificadores de conversación.** Escribir primero casos parametrizados para pregunta, decisión e historial; después centralizar el límite y aplicar la validación antes de consultas o llamadas al agente. Mantener generación de identificador para `/ask` sin identificador o con `null`. (RF-18, RF-20)
+- [x] **T2. Validar los identificadores de conversación.** Escribir primero casos parametrizados para pregunta, decisión e historial; después centralizar el límite y aplicar la validación antes de consultas o llamadas al agente. Mantener generación de identificador para `/ask` sin identificador o con `null`. (RF-18, RF-20)
   **Depende de:** T1.
   **Hecho cuando:** `tests/test_api_historial.py::test_thread_invalido_422_sin_consultas` pasa con espacios, vacío cuando la ruta admita recibirlo, 128 y 129 caracteres; los contadores de consultas y agente permanecen en cero ante entradas inválidas. La ruta sin segmento conserva su 404 de enrutamiento.
 
@@ -114,7 +114,7 @@
 Los 24 requisitos aparecen en tareas anteriores al cierre; no falta ninguno.
 Las dependencias permiten una suite verde tras cada incremento, aunque los
 requisitos de la funcionalidad solo queden completos al terminar sus tareas.
-Solo T1 está completada; las tareas restantes no están iniciadas.
+T1 y T2 están completadas; las tareas restantes no están iniciadas.
 
 ## Evidencias de T1 — 2026-11-15
 
@@ -151,3 +151,34 @@ Esta ejecución no certifica nuevas pruebas con PostgreSQL real.
 T1 proporciona infraestructura y regresión de apoyo a RF-20 y RF-21; no certifica
 que la nueva persistencia de la API esté implementada. No se modificó código de
 producción, `develop` ni las PR. No se hizo `git add`, commit o push.
+
+## Evidencias de T2 — 2026-11-15
+
+Se centralizó el límite de identificador recibido en `config.API_THREAD_ID_MAX_LENGTH`.
+El tipo `ThreadId` de `src/api/esquemas.py` se reutiliza en `AskIn`, `ApproveIn`
+y el parámetro de la ruta de historial. Comprueba longitud de 1 a 128 caracteres
+y rechaza texto formado solo por espacios, sin recortar identificadores válidos.
+La generación automática de identificador en `/ask` sigue admitiendo omisión y `null`.
+
+`tests/test_api_historial.py` contiene 29 casos de T2. Incluyen cuerpos de pregunta
+y decisión, parámetros de ruta codificados en URL, entradas vacías o de espacios,
+longitud 129, tipos incorrectos, longitud 128 con caracteres ASCII y Unicode,
+conservación de espacios en identificadores válidos y generación de UUID distintos.
+Los contadores de acceso al agente y ejecución SQL permanecen en cero ante las
+entradas inválidas. El segmento de ruta ausente conserva su 404 de enrutamiento.
+
+| Comando / comprobación | Resultado real |
+|---|---|
+| `python -m pytest tests/test_api_historial.py -q -p no:cacheprovider -o addopts='' --tb=short`, antes de implementar | 10 failed, 19 passed in 1.69s: se admitían identificadores inválidos o la ruta de historial devolvía 501 en lugar de validar. |
+| `python -m pytest tests/test_api_historial.py tests/test_api_esquemas.py tests/test_api_ask.py tests/test_api_aprobacion.py tests/test_api_autoaprobar.py tests/test_api_rutas.py tests/test_api_errores.py tests/test_api_aislamiento.py -q -p no:cacheprovider -o addopts='' --tb=short` | 74 passed in 2.06s. |
+| `python -m pytest -q -p no:cacheprovider -o addopts='' --tb=short` | 1357 passed, 18 skipped in 21.78s. |
+| `git diff --check` | Sin errores. |
+
+Se mantuvo `PYTHON_DOTENV_DISABLED=1`; la suite global usó valores ficticios de EMT
+para los dobles existentes. No se configuró PostgreSQL real: las 18 omisiones
+mantienen los mismos motivos documentados en T1.
+
+T2 cubre RF-18 y conserva el contrato público de RF-20. Los identificadores válidos
+todavía llegan al 501 existente de historial: sustituirlo por lectura corresponde
+a T4. No se implementó T3 ni se modificaron las funciones del agente o la capa de
+persistencia. No se hizo `git add`, commit, push ni cambios en PR.
