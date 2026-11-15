@@ -1,7 +1,7 @@
 # Tareas — Spec 016
 
 > Basadas en la especificación y el plan aprobados el 2026-11-15.
-> Estado: Preparadas; ninguna tarea de implementación iniciada.
+> Estado: T1 completada y verificada el 2026-11-15; T2 a T20 pendientes.
 > Una tarea cada vez. Tests primero. Marcar `[x]` solo después de verificarla.
 
 ## Reglas de ejecución
@@ -10,13 +10,13 @@
 - Seguir el orden indicado y detenerse al terminar una tarea, conforme a `AGENTS.md`.
 - En tareas con lógica: ejecutar primero el test nuevo para observar el fallo esperado, implementar solo el incremento y verificar la regresión correspondiente.
 - Terminar cada tarea con `pytest` sin servicios externos de pago y registrar su resumen real. Si falla la regresión, resolverlo antes de avanzar.
-- Los nombres de tests que siguen son propuestos: todavía no existen ni se han dado por superados.
+- Los nombres de tests de las tareas pendientes son propuestos: todavía no se han dado por superados.
 - Mantener separados estos cambios de integración del alcance de PR #1; no hacer commit, push, cambios en PR ni modificaciones de `develop` sin autorización expresa.
 - No leer `.env`, añadir dependencias ni modificar grafo, RAG, frontend, Docker de despliegue o Render.
 
 ## Secuencia de trabajo
 
-- [ ] **T1. Preparar las fixtures aisladas de API.** Crear primero una prueba que detecte contaminación de sesiones, agente o planes entre casos; después preparar SQLite compartida por petición, dobles de arranque y limpieza del estado API en fixtures específicas, sin afectar tests ajenos a la API. (RF-20, RF-21)
+- [x] **T1. Preparar las fixtures aisladas de API.** Crear primero una prueba que detecte contaminación de sesiones, agente o planes entre casos; después preparar SQLite compartida por petición, dobles de arranque y limpieza del estado API en fixtures específicas, sin afectar tests ajenos a la API. (RF-20, RF-21)
   **Depende de:** especificación y plan aprobados.
   **Hecho cuando:** `python -m pytest tests/test_api_ask.py tests/test_api_aprobacion.py tests/test_api_autoaprobar.py tests/test_api_rutas.py tests/test_api_errores.py -q` pasa sin PostgreSQL ni HTTP real y la prueba nueva confirma que dos casos no comparten datos o estado residual.
 
@@ -114,4 +114,40 @@
 Los 24 requisitos aparecen en tareas anteriores al cierre; no falta ninguno.
 Las dependencias permiten una suite verde tras cada incremento, aunque los
 requisitos de la funcionalidad solo queden completos al terminar sus tareas.
-Este documento no ejecuta ni da por completada ninguna tarea de implementación.
+Solo T1 está completada; las tareas restantes no están iniciadas.
+
+## Evidencias de T1 — 2026-11-15
+
+Se añadieron fixtures optativas `motor_api`, `sesiones_api`, `entorno_api` y
+`cliente_api` en `tests/conftest.py`. Cada caso de API obtiene SQLite en memoria,
+sesiones independientes sobre su mismo motor y un cliente con contexto de ciclo
+de vida. Se sustituyen el acceso a motor, la preparación de tablas y la dependencia
+de sesión; se restauran los overrides anteriores al terminar. El agente y los
+planes se reinician por caso, manteniendo el bloqueo de HTTP real existente.
+No se ha implementado todavía el lifespan de producción de T14.
+
+Se adaptaron los cinco módulos API del criterio de T1 para usar el cliente común.
+`tests/test_api_aislamiento.py` incorpora seis casos que comprueban aislamiento
+de agente y planes, aislamiento de datos entre casos, lectura entre sesiones del
+mismo caso, rollback al cerrar sin commit y coherencia del motor de arranque.
+
+| Comando / comprobación | Resultado real |
+|---|---|
+| `python -m pytest tests/test_api_aislamiento.py::test_estado_api_no_se_comparte_entre_casos -v -p no:cacheprovider -o addopts='' --tb=short`, con el cliente previo a las fixtures | 1 passed, 1 failed: el segundo caso heredó el plan `hilo-aislamiento` del primero. |
+| `python -m pytest tests/test_api_aislamiento.py tests/test_api_ask.py tests/test_api_aprobacion.py tests/test_api_autoaprobar.py tests/test_api_rutas.py tests/test_api_errores.py -q -p no:cacheprovider -o addopts='' --tb=short` | 37 passed in 1.21s. |
+| `python -m pytest -q -p no:cacheprovider -o addopts='' --tb=short` | 1328 passed, 18 skipped in 21.40s. |
+| `git diff --check` | Sin errores. |
+
+Durante la adaptación hubo cuatro fallos por retirar un import de `config` que
+seguía siendo necesario en los tests de errores; se restauró antes de las dos
+ejecuciones finales en verde.
+
+Las ejecuciones usaron `PYTHON_DOTENV_DISABLED=1`, sin leer `.env`, con valores
+ficticios de EMT para los dobles existentes de la suite global. No se configuró
+`SPEC014_TEST_DATABASE_URL`: los 18 casos omitidos corresponden a integración
+PostgreSQL optativa y al caso de SQLite en memoria entre procesos de SPEC-014.
+Esta ejecución no certifica nuevas pruebas con PostgreSQL real.
+
+T1 proporciona infraestructura y regresión de apoyo a RF-20 y RF-21; no certifica
+que la nueva persistencia de la API esté implementada. No se modificó código de
+producción, `develop` ni las PR. No se hizo `git add`, commit o push.
