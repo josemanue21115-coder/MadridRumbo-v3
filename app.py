@@ -7,13 +7,15 @@ La documentación interactiva queda disponible en /docs.
 import asyncio
 import logging
 import os
+import re
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 import config
 from src.api import servicio
 from src.api.esquemas import ApproveIn, AskIn, AskOut, MessageOut
+from src.api.logs_peticion import RegistroPeticionesProtegidas
 from src.api.seguridad import validar_api_key
 
 app = FastAPI(
@@ -42,16 +44,27 @@ logger = logging.getLogger(__name__)
 
 
 class _FiltroAccessLog(logging.Filter):
-    """Elimina la query de la ruta antes de que Uvicorn formatee el access log."""
+    """Sanea las queries y suprime access logs duplicados de rutas protegidas."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         argumentos = record.args
         if isinstance(argumentos, tuple) and len(argumentos) >= 3:
             ruta = argumentos[2]
             if isinstance(ruta, str):
+                metodo = argumentos[1]
+                ruta_sin_query = ruta.partition("?")[0]
                 argumentos_saneados = list(argumentos)
-                argumentos_saneados[2] = ruta.partition("?")[0]
+                argumentos_saneados[2] = ruta_sin_query
                 record.args = tuple(argumentos_saneados)
+                es_protegida = (
+                    metodo == "POST" and ruta_sin_query in {"/ask", "/approve"}
+                ) or (
+                    metodo == "GET"
+                    and re.fullmatch(r"/threads/[^/]+/messages", ruta_sin_query)
+                    is not None
+                )
+                if es_protegida:
+                    return False
         return True
 
 
@@ -73,29 +86,40 @@ def health() -> dict:
 
 
 @app.post("/ask", response_model=AskOut, tags=["Agente"], responses=ERROR_ASK)
-async def ask(datos: AskIn, _autenticacion: None = Depends(validar_api_key)) -> AskOut:
+async def ask(
+    datos: AskIn,
+    request: Request,
+    _autenticacion: None = Depends(validar_api_key),
+) -> AskOut:
     """Envía una pregunta al agente y devuelve su respuesta.
 
     Si no se indica `thread_id`, se crea una conversación nueva. Una pregunta vacía da error 422.
     Con `auto_aprobar` activo, un plan único se aprueba solo; con varios planes, se devuelven pendientes.
     """
+    request.state.thread_id = datos.thread_id
     try:
-        return await asyncio.wait_for(
+        resultado = await asyncio.wait_for(
             asyncio.to_thread(servicio.preguntar, datos),
             timeout=config.ASK_TIMEOUT_SECONDS,
         )
+        request.state.thread_id = resultado.thread_id
+        return resultado
     except asyncio.TimeoutError:
-        logger.warning("Timeout al procesar el turno de /ask.")
         raise HTTPException(status_code=504, detail=MENSAJE_TIMEOUT_ASK) from None
 
 
 @app.post("/approve", response_model=AskOut, tags=["Agente"], responses=ERROR_500)
-def approve(datos: ApproveIn, _autenticacion: None = Depends(validar_api_key)) -> AskOut:
+def approve(
+    datos: ApproveIn,
+    request: Request,
+    _autenticacion: None = Depends(validar_api_key),
+) -> AskOut:
     """Aprueba o rechaza el plan pendiente de una conversación.
 
     `plan_id` solo es necesario cuando hay varios planes pendientes.
     Si no hay plan pendiente, el aviso llega en el campo `error`.
     """
+    request.state.thread_id = datos.thread_id
     return servicio.aprobar(datos)
 
 
@@ -113,3 +137,7 @@ def messages(
     Ruta reservada: la implementa quien se encarga de la base de datos.
     """
     raise HTTPException(status_code=501, detail=config.API_MENSAJES_NO_IMPLEMENTADO)
+
+
+# Se envuelve por fuera de FastAPI para observar también las respuestas de error globales.
+app = RegistroPeticionesProtegidas(app)

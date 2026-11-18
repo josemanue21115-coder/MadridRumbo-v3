@@ -1,4 +1,5 @@
 """Pruebas del timeout exclusivo de POST /ask (spec 017)."""
+import json
 import logging
 import time
 
@@ -59,13 +60,20 @@ def test_ask_lento_devuelve_504_con_mensaje_y_sin_secreto(monkeypatch, caplog):
     assert respuesta.status_code == 504
     assert respuesta.json()["detail"] == MENSAJE_TIMEOUT
     assert CLAVE_PRUEBA not in respuesta.text
-    eventos_timeout = [
-        registro.getMessage()
+    eventos_peticion = [
+        json.loads(registro.getMessage())
         for registro in caplog.records
-        if registro.name == "app"
+        if registro.name == "src.api.logs_peticion"
     ]
-    assert any("timeout" in evento.lower() for evento in eventos_timeout)
-    assert all(CLAVE_PRUEBA not in evento for evento in eventos_timeout)
+    assert len(eventos_peticion) == 1
+    assert eventos_peticion[0]["event"] == "protected_request"
+    assert eventos_peticion[0]["status_code"] == 504
+    assert eventos_peticion[0]["thread_id"] is None
+    assert CLAVE_PRUEBA not in json.dumps(eventos_peticion[0])
+    assert not any(
+        registro.name == "app" and "timeout" in registro.getMessage().lower()
+        for registro in caplog.records
+    )
 
 
 def test_approve_no_aplica_el_timeout_de_ask(monkeypatch):

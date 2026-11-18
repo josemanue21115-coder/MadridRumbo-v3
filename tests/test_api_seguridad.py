@@ -272,9 +272,29 @@ def test_limite_intentos_con_clave_invalida_consumen_cuota_de_esa_clave(monkeypa
     assert clave_invalida not in segunda.text
 
 
-def test_access_log_no_incluye_query_con_api_key():
+def test_access_log_sanea_query_y_no_duplica_rutas_protegidas():
     logger_acceso = logging.getLogger("uvicorn.access")
-    registro = logger_acceso.makeRecord(
+    filtro = next(
+        elemento
+        for elemento in logger_acceso.filters
+        if elemento.__class__.__name__ == "_FiltroAccessLog"
+    )
+    registro_protegido = logger_acceso.makeRecord(
+        name="uvicorn.access",
+        level=logging.INFO,
+        fn=__file__,
+        lno=1,
+        msg='%s - "%s %s HTTP/%s" %d',
+        args=(
+            "127.0.0.1:12345",
+            "POST",
+            f"/ask?api_key={CLAVE_PRUEBA}",
+            "1.1",
+            200,
+        ),
+        exc_info=None,
+    )
+    registro_publico = logger_acceso.makeRecord(
         name="uvicorn.access",
         level=logging.INFO,
         fn=__file__,
@@ -283,14 +303,17 @@ def test_access_log_no_incluye_query_con_api_key():
         args=(
             "127.0.0.1:12345",
             "GET",
-            f"/threads/hilo/messages?api_key={CLAVE_PRUEBA}",
+            f"/health?trace_id={CLAVE_PRUEBA}",
             "1.1",
-            401,
+            200,
         ),
         exc_info=None,
     )
 
-    logger_acceso.handle(registro)
+    assert filtro.filter(registro_protegido) is False
+    assert "?api_key=" not in registro_protegido.getMessage()
+    assert CLAVE_PRUEBA not in registro_protegido.getMessage()
 
-    assert "?api_key=" not in registro.getMessage()
-    assert CLAVE_PRUEBA not in registro.getMessage()
+    assert filtro.filter(registro_publico) is True
+    assert "?trace_id=" not in registro_publico.getMessage()
+    assert CLAVE_PRUEBA not in registro_publico.getMessage()
