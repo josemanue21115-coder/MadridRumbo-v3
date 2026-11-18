@@ -9,6 +9,7 @@ import logging
 import os
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 import config
 from src.api import servicio
@@ -19,6 +20,15 @@ app = FastAPI(
     title="MadridRumbo API",
     description="Asistente de transporte público de Madrid: preguntas al agente y aprobación de planes.",
     version="1.0.0",
+)
+
+# CORS permite a los navegadores usar la API desde los orígenes configurados.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=config.CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Accept", "Content-Type"],
 )
 
 # Respuesta documentada para los fallos inesperados del agente.

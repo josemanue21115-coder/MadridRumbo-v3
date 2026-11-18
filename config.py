@@ -42,6 +42,13 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 # Credencial y límites de protección de la API REST.
 API_KEY = os.getenv("API_KEY", "")
 
+# Orígenes de clientes web autorizados para solicitudes CORS.
+CORS_ORIGINS = [
+    origen.strip()
+    for origen in os.getenv("CORS_ORIGINS", "").split(",")
+    if origen.strip()
+]
+
 
 def _entero_positivo_entorno(nombre: str, predeterminado: int) -> int:
     """Lee un entero positivo del entorno o devuelve su valor predeterminado."""
