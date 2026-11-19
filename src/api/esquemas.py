@@ -4,9 +4,26 @@ Cada clase es un "formulario". Pydantic comprueba que los datos que llegan cumpl
 sus reglas y, si no, FastAPI responde solo con un error 422 sin llegar al agente.
 Estas clases también alimentan la documentación interactiva de /docs.
 """
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AfterValidator, BaseModel, Field, StringConstraints, field_validator
+
+import config
+
+
+def _thread_id_no_vacio(valor: str) -> str:
+    """Rechaza espacios sin alterar el identificador usado para consultar el hilo."""
+    if not valor.strip():
+        raise ValueError("El identificador de conversación no puede estar vacío.")
+    return valor
+
+
+# El mismo contrato valida los cuerpos de pregunta/decisión y el parámetro de ruta.
+ThreadId = Annotated[
+    str,
+    StringConstraints(min_length=1, max_length=config.API_THREAD_ID_MAX_LENGTH),
+    AfterValidator(_thread_id_no_vacio),
+]
 
 
 class AskIn(BaseModel):
@@ -14,7 +31,7 @@ class AskIn(BaseModel):
 
     pregunta: str = Field(description="Pregunta de la persona usuaria.")
     # Opcional: si no llega, la API crea una conversación nueva (RF-6).
-    thread_id: str | None = Field(
+    thread_id: ThreadId | None = Field(
         default=None,
         description="Identificador de la conversación. Si falta, se crea uno nuevo.",
     )
@@ -50,7 +67,7 @@ class AskOut(BaseModel):
 class ApproveIn(BaseModel):
     """Decisión sobre un plan pendiente, para POST /approve."""
 
-    thread_id: str = Field(min_length=1)
+    thread_id: ThreadId
     # Verdadero aprueba el plan; falso lo rechaza y la conversación continúa (RF-12).
     aprobado: bool
     # El agente puede devolver varios planes a la vez; entonces hay que indicar cuál se decide (RF-11).

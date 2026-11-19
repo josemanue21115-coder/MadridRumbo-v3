@@ -16,16 +16,20 @@ from src.clientes.grafo_falso import GrafoFalso
 
 
 CLAVE_PRUEBA = "clave-logs-test"
-cliente = TestClient(app, raise_server_exceptions=False)
+cliente = None
 
 
 @pytest.fixture(autouse=True)
-def entorno_logs_aislado(monkeypatch, caplog):
+def entorno_logs_aislado(monkeypatch, caplog, entorno_api):
     """Aísla autenticación, cuota y logs entre peticiones de prueba."""
     monkeypatch.setattr(config, "API_KEY", CLAVE_PRUEBA)
     monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 10_000)
     caplog.set_level(logging.INFO)
     caplog.clear()
+    global cliente
+    with TestClient(app, raise_server_exceptions=False) as cliente_activo:
+        cliente = cliente_activo
+        yield
 
 
 def _eventos_peticion(caplog):
@@ -59,7 +63,7 @@ def test_ask_registra_campos_y_thread_id_generado(monkeypatch, caplog):
     monkeypatch.setattr(
         servicio,
         "preguntar",
-        lambda _datos: AskOut(
+        lambda _datos, _session: AskOut(
             respuesta="Respuesta simulada",
             thread_id="hilo-generado",
             done=True,
@@ -80,7 +84,7 @@ def test_approve_registra_campos_y_thread_id(monkeypatch, caplog):
     monkeypatch.setattr(
         servicio,
         "aprobar",
-        lambda datos: AskOut(
+        lambda datos, _session: AskOut(
             respuesta="Decisión simulada",
             thread_id=datos.thread_id,
             done=True,
@@ -102,7 +106,7 @@ def test_historial_registra_campos_y_thread_id_concreto(caplog):
         "/threads/hilo-historial/messages?api_key=" + CLAVE_PRUEBA
     )
 
-    assert respuesta.status_code == 501
+    assert respuesta.status_code == 404
     _comprobar_evento(
         caplog,
         respuesta,
@@ -116,7 +120,7 @@ def test_fallo_antes_de_obtener_thread_id_registra_null(monkeypatch, caplog):
     """Si el servicio falla antes de devolver el ID, el evento usa null."""
     from fastapi import HTTPException
 
-    def fallar_antes_del_id(_datos):
+    def fallar_antes_del_id(_datos, _session):
         raise HTTPException(status_code=500, detail="Fallo simulado")
 
     monkeypatch.setattr(servicio, "preguntar", fallar_antes_del_id)
@@ -145,7 +149,7 @@ def test_error_429_registra_estado(monkeypatch, caplog):
     monkeypatch.setattr(config, "API_KEY", clave_limitada)
     monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 1)
     ruta = "/threads/hilo-limite/messages"
-    assert cliente.get(ruta, params={"api_key": clave_limitada}).status_code == 501
+    assert cliente.get(ruta, params={"api_key": clave_limitada}).status_code == 404
     caplog.clear()
 
     respuesta = cliente.get(ruta, params={"api_key": clave_limitada})
@@ -176,7 +180,7 @@ def test_error_503_registra_estado(monkeypatch, caplog):
 def test_error_504_registra_estado(monkeypatch, caplog):
     monkeypatch.setattr(config, "ASK_TIMEOUT_SECONDS", 0.005)
 
-    def turno_lento(_datos):
+    def turno_lento(_datos, _session):
         Event().wait(0.05)
         return AskOut(
             respuesta="Respuesta simulada",
@@ -287,7 +291,7 @@ def test_logs_de_exito_no_contienen_secretos_ni_texto_conversacional(
     monkeypatch.setattr(
         servicio,
         "preguntar",
-        lambda _datos: AskOut(
+        lambda _datos, _session: AskOut(
             respuesta=marcadores["respuesta"],
             thread_id="hilo-privado",
             done=True,

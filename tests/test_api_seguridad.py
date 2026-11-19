@@ -19,16 +19,20 @@ from src.clientes.grafo_falso import GrafoFalso
 
 RAIZ = Path(__file__).resolve().parents[1]
 CLAVE_PRUEBA = "clave-de-prueba"
-cliente = TestClient(app)
+cliente = None
 
 
 @pytest.fixture(autouse=True)
-def entorno_api_aislado(monkeypatch):
+def entorno_api_aislado(monkeypatch, entorno_api):
     """Usa credenciales y agente falsos en las pruebas HTTP."""
     monkeypatch.setattr(config, "API_KEY", CLAVE_PRUEBA)
     monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 10_000)
     monkeypatch.setattr(servicio, "_agente", GrafoFalso())
     monkeypatch.setattr(servicio, "_planes_pendientes", {})
+    global cliente
+    with TestClient(app) as cliente_activo:
+        cliente = cliente_activo
+        yield
 
 
 def _solicitar(metodo, ruta, *, params=None, datos=None):
@@ -121,7 +125,7 @@ def test_env_example_documenta_configuracion_sin_secretos():
     [
         ("post", "/ask", {"pregunta": "Hola", "auto_aprobar": False}, 200),
         ("post", "/approve", {"thread_id": "hilo-test", "aprobado": False}, 200),
-        ("get", "/threads/hilo-test/messages", None, 501),
+        ("get", "/threads/hilo-test/messages", None, 404),
     ],
 )
 def test_clave_valida_permite_acceder_a_rutas_protegidas(
@@ -209,7 +213,7 @@ def test_limite_compartido_se_aplica_entre_rutas(monkeypatch):
         json={"pregunta": "Hola", "auto_aprobar": False},
     )
 
-    assert primera.status_code == 501
+    assert primera.status_code == 404
     assert segunda.status_code == 200
     assert tercera.status_code == 429
     assert config.API_KEY not in tercera.text
@@ -226,13 +230,13 @@ def test_limite_usa_ventana_movil_de_60_segundos(monkeypatch):
             "/threads/hilo-test/messages", params={"api_key": config.API_KEY}
         )
 
-    assert consultar_historial().status_code == 501
+    assert consultar_historial().status_code == 404
     reloj["ahora"] += 0.5
-    assert consultar_historial().status_code == 501
+    assert consultar_historial().status_code == 404
     reloj["ahora"] += 0.5
     assert consultar_historial().status_code == 429
     reloj["ahora"] += 59.6
-    assert consultar_historial().status_code == 501
+    assert consultar_historial().status_code == 404
 
 
 def test_intentos_sin_clave_comparten_el_mismo_limite(monkeypatch):

@@ -7,12 +7,15 @@ from contextlib import contextmanager
 from typing import Any
 
 from fastapi import HTTPException
+from sqlmodel import Session
 
 import config
-from src.api.esquemas import ApproveIn, AskIn, AskOut
+from src.api import historial
+from src.api.esquemas import ApproveIn, AskIn, AskOut, MessageOut
 from src.clientes.cargar import cargar_agente
 from src.clientes.contrato import estado_vacio
 from src.clientes.planes import ids_de_planes
+from src.history import save_closed_turn
 
 # El agente se carga una sola vez y se reutiliza: guarda las conversaciones en memoria,
 # así que crear uno nuevo en cada petición le haría olvidar los planes pendientes.
@@ -23,6 +26,14 @@ _agente: Any = None
 _planes_pendientes: dict[str, list] = {}
 
 
+def obtener_historial(session: Session, thread_id: str) -> list[MessageOut]:
+    """Distingue un hilo inexistente de uno conocido sin mensajes finalizados."""
+    with _fallos_como_500():
+        if not historial.es_hilo_conocido(session, thread_id):
+            raise HTTPException(status_code=404, detail=config.API_CONVERSACION_NO_ENCONTRADA)
+        return historial.leer_historial(session, thread_id)
+
+
 @contextmanager
 def _fallos_como_500():
     """Convierte cualquier fallo inesperado en un error 500 con un mensaje genérico en español.
@@ -31,6 +42,8 @@ def _fallos_como_500():
     """
     try:
         yield
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=500, detail=config.API_ERROR_INTERNO) from None
 
@@ -75,7 +88,7 @@ def _a_respuesta(resultado: dict, thread_id: str) -> AskOut:
     )
 
 
-def preguntar(datos: AskIn) -> AskOut:
+def preguntar(datos: AskIn, session: Session) -> AskOut:
     """Pasa la pregunta al agente y, si procede, aprueba solo el plan pendiente."""
     with _fallos_como_500():
         # Si la persona no envía identificador, se crea uno nuevo para esta conversación.
@@ -83,6 +96,13 @@ def preguntar(datos: AskIn) -> AskOut:
         agente = obtener_agente()
         resultado = agente.procesar_turno(estado_vacio(), datos.pregunta, thread_id)
         _recordar_plan(thread_id, resultado)
+        # La fachada real puede conservar el plan en un rechazo de control.
+        # No debe autoaprobarse ni tratarse como una pregunta aceptada nueva.
+        if _deducir_error(resultado) is not None:
+            return _a_respuesta(resultado, thread_id)
+        historial.registro_temporal.registrar_hilo(thread_id)
+        if resultado["hitl_pendiente"]:
+            historial.registro_temporal.guardar_pregunta(thread_id, datos.pregunta)
 
         # Aprobación automática: solo si se pide, hay un plan esperando y es uno único.
         # Con varios planes la API no elige por la persona (RF-9).
@@ -95,10 +115,20 @@ def preguntar(datos: AskIn) -> AskOut:
             resultado = agente.aprobar_plan(estado, thread_id, True)
             _recordar_plan(thread_id, resultado)
 
+        if resultado["done"] and not resultado["hitl_pendiente"] and _deducir_error(resultado) is None:
+            _guardar_turno(session, thread_id, datos.pregunta, resultado["respuesta"])
         return _a_respuesta(resultado, thread_id)
 
 
-def aprobar(datos: ApproveIn) -> AskOut:
+def _guardar_turno(session: Session, thread_id: str, pregunta: str | None, respuesta: str) -> None:
+    """El agente ya cerró el turno; un fallo SQL no deja una aprobación ficticia."""
+    try:
+        save_closed_turn(session, thread_id, pregunta, respuesta)
+    finally:
+        historial.registro_temporal.finalizar_turno(thread_id)
+
+
+def aprobar(datos: ApproveIn, session: Session) -> AskOut:
     """Aprueba o rechaza el plan pendiente de una conversación (RF-10 a RF-13)."""
     with _fallos_como_500():
         estado = {**estado_vacio(), "plan": _planes_pendientes.get(datos.thread_id, [])}
@@ -107,4 +137,10 @@ def aprobar(datos: ApproveIn) -> AskOut:
             estado["plan_id_seleccionado"] = datos.plan_id
         resultado = obtener_agente().aprobar_plan(estado, datos.thread_id, datos.aprobado)
         _recordar_plan(datos.thread_id, resultado)
+        rechazo_final = not datos.aprobado and not ids_de_planes(resultado["plan"])
+        if (resultado["done"] or rechazo_final) and not resultado["hitl_pendiente"] and _deducir_error(resultado) is None:
+            _guardar_turno(
+                session, datos.thread_id,
+                historial.registro_temporal.obtener_pregunta(datos.thread_id), resultado["respuesta"],
+            )
         return _a_respuesta(resultado, datos.thread_id)

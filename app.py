@@ -8,20 +8,45 @@ import asyncio
 import logging
 import os
 import re
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from sqlmodel import Session
 
 import config
-from src.api import servicio
-from src.api.esquemas import ApproveIn, AskIn, AskOut, MessageOut
+import src.db as db
+from src.api import historial, servicio
+from src.api.esquemas import ApproveIn, AskIn, AskOut, MessageOut, ThreadId
 from src.api.logs_peticion import RegistroPeticionesProtegidas
 from src.api.seguridad import validar_api_key
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Prepara persistencia antes de servir y libera el contexto local al terminar."""
+    historial.registro_temporal.limpiar()
+    servicio._planes_pendientes.clear()
+    servicio._agente = None
+    try:
+        db.create_db_and_tables()
+        motor = db.get_engine()
+    except Exception:
+        raise RuntimeError(config.API_ERROR_ARRANQUE_DB) from None
+    try:
+        yield
+    finally:
+        historial.registro_temporal.limpiar()
+        servicio._planes_pendientes.clear()
+        servicio._agente = None
+        motor.dispose()
+
 
 app = FastAPI(
     title="MadridRumbo API",
     description="Asistente de transporte público de Madrid: preguntas al agente y aprobación de planes.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS permite a los navegadores usar la API desde los orígenes configurados.
@@ -89,6 +114,7 @@ def health() -> dict:
 async def ask(
     datos: AskIn,
     request: Request,
+    session: Session = Depends(db.get_session),
     _autenticacion: None = Depends(validar_api_key),
 ) -> AskOut:
     """Envía una pregunta al agente y devuelve su respuesta.
@@ -99,7 +125,7 @@ async def ask(
     request.state.thread_id = datos.thread_id
     try:
         resultado = await asyncio.wait_for(
-            asyncio.to_thread(servicio.preguntar, datos),
+            asyncio.to_thread(servicio.preguntar, datos, session),
             timeout=config.ASK_TIMEOUT_SECONDS,
         )
         request.state.thread_id = resultado.thread_id
@@ -112,6 +138,7 @@ async def ask(
 def approve(
     datos: ApproveIn,
     request: Request,
+    session: Session = Depends(db.get_session),
     _autenticacion: None = Depends(validar_api_key),
 ) -> AskOut:
     """Aprueba o rechaza el plan pendiente de una conversación.
@@ -120,23 +147,22 @@ def approve(
     Si no hay plan pendiente, el aviso llega en el campo `error`.
     """
     request.state.thread_id = datos.thread_id
-    return servicio.aprobar(datos)
+    return servicio.aprobar(datos, session)
 
 
 @app.get(
     "/threads/{thread_id}/messages",
     response_model=list[MessageOut],
     tags=["Historial"],
-    responses={501: {"description": "Todavía no implementada: depende del historial en base de datos."}},
+    responses={404: {"description": "Conversación no encontrada."}, **ERROR_500},
 )
 def messages(
-    thread_id: str, _autenticacion: None = Depends(validar_api_key)
+    thread_id: ThreadId,
+    session: Session = Depends(db.get_session),
+    _autenticacion: None = Depends(validar_api_key),
 ) -> list[MessageOut]:
-    """Devuelve los mensajes de una conversación (role, content, orden).
-
-    Ruta reservada: la implementa quien se encarga de la base de datos.
-    """
-    raise HTTPException(status_code=501, detail=config.API_MENSAJES_NO_IMPLEMENTADO)
+    """Recupera el historial finalizado, ordenado dentro de la conversación."""
+    return servicio.obtener_historial(session, thread_id)
 
 
 # Se envuelve por fuera de FastAPI para observar también las respuestas de error globales.

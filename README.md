@@ -321,7 +321,14 @@ El panel web oculta los diagnósticos técnicos del supervisor; el CLI sí los m
 
 ### API REST (FastAPI)
 
-La API expone el agente por HTTP (spec 013). Se arranca desde la raíz del repositorio:
+La API expone el agente por HTTP (spec 013) y conserva sus turnos finalizados en
+PostgreSQL (specs 014 y 016). Antes de arrancar, configura `DATABASE_URL` en el
+entorno local y comprueba que PostgreSQL esté accesible. La URL puede comenzar
+por `postgres://` o `postgresql://`; el proyecto selecciona el controlador
+`psycopg2` ya declarado en las dependencias. No incluyas credenciales reales en Git.
+
+El arranque crea las tablas que falten y aborta si no puede prepararlas; no aplica
+migraciones a tablas existentes. Se arranca desde la raíz del repositorio:
 
 ```bash
 uvicorn app:app --reload
@@ -350,7 +357,62 @@ CORS controla qué respuestas cross-origin puede leer el navegador; no sustituye
 | `GET /health` | Comprueba que el servicio está vivo e indica si el agente es real o simulado. |
 | `POST /ask` | Envía una pregunta. Con `auto_aprobar` activo, un plan único se aprueba solo. |
 | `POST /approve` | Aprueba o rechaza el plan pendiente de una conversación. |
-| `GET /threads/{thread_id}/messages` | Reservada para el historial en base de datos (responde 501 por ahora). |
+| `GET /threads/{thread_id}/messages` | Recupera los turnos guardados de ese hilo, ordenados por inserción. |
+
+El historial responde con una lista de mensajes `{role, content, orden}`. `orden`
+empieza en 1 dentro del hilo; los roles de los pares guardados son `user` y
+`assistant`. Cada turno confirmado guarda la pregunta original y la respuesta
+final en una única transacción. Un turno con planes pendientes todavía no aparece
+en el historial. Al rechazar el último plan se guarda la respuesta de rechazo,
+respetando `done=false` del agente para permitir continuar la conversación.
+
+| Código | Significado |
+|---|---|
+| 200 | Historial recuperado; una lista vacía indica un hilo conocido sin turnos guardados. |
+| 404 | «Conversación no encontrada»: ni existe en PostgreSQL ni lo reconoce el proceso actual. |
+| 422 | Entrada inválida, incluido un identificador recibido vacío, de espacios o mayor de 128 caracteres. |
+| 500 | Fallo interno de lectura o guardado; la respuesta no incluye detalles SQL ni credenciales. |
+
+Omitir `thread_id` o enviarlo como `null` en `/ask` crea un identificador nuevo.
+Un segmento ausente en `/threads//messages` no coincide con la ruta y devuelve 404.
+`/health` indica que la API arrancó y el modo del agente; no monitoriza continuamente
+la conexión a PostgreSQL. El modo simulado también necesita la base de datos.
+
+El historial guardado sobrevive a un reinicio de la API. Las preguntas y planes
+pendientes viven en la memoria del proceso: no se restauran tras reiniciar ni se
+comparten entre varios workers. Un hilo solo temporal puede pasar de 200 vacío a
+404 después de reiniciar. Esta integración no rehidrata la memoria del agente.
+
+Si falla el guardado, la API devuelve 500 y no repite automáticamente al agente.
+El rollback de PostgreSQL no deshace acciones del agente. Si se pierde la respuesta
+HTTP, consulta primero el historial cuando conozcas el `thread_id`: reenviar una
+petición no garantiza deduplicación y puede crear otro turno. Tampoco se promete
+serialización nueva de peticiones concurrentes sobre el mismo hilo.
+
+### Pruebas de integración del historial
+
+Las pruebas normales usan dobles y SQLite. Las de PostgreSQL son optativas:
+`SPEC016_TEST_DATABASE_URL` debe apuntar a una base **local y desechable** llamada
+`spec016`, con usuario `spec016`, sin parámetros adicionales de URL. Cada caso
+crea y elimina un esquema aleatorio propio; nunca apuntes esta configuración a
+datos que debas conservar. El contenedor usado para la validación es temporal y
+no constituye la configuración Docker de despliegue.
+
+```powershell
+$env:PYTHON_DOTENV_DISABLED = '1'
+# Configura SPEC016_TEST_DATABASE_URL con la URL temporal, sin guardarla en Git.
+python -m pytest tests/test_api_postgresql.py -q
+```
+
+Sin esa variable se omiten los casos de PostgreSQL con un motivo explícito.
+Las pruebas de UI compatibles con SPEC-015 también son optativas: requieren
+`SPEC016_FRONTEND_DIR` con copias revisadas de `front.py` y `api_http.py` del
+frontend; `tests/test_api_frontend_compat.py` usa AppTest y sustituye solo el
+transporte de red hacia la API local en proceso. No modifica la rama del frontend.
+La revisión conjunta con sus responsables sigue pendiente antes del cierre de
+SPEC-016. Docker de aplicación, Render y la autenticación del backend permanecen
+en bloques separados; no se debe presentar esta API como lista para exposición
+pública por tener únicamente configurada una clave en el cliente.
 
 
 ### Imagen demo multimodal

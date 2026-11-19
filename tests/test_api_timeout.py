@@ -13,16 +13,20 @@ from src.api.esquemas import AskOut
 
 
 CLAVE_PRUEBA = "clave-timeout-de-prueba"
-cliente = TestClient(app)
+cliente = None
 MENSAJE_TIMEOUT = "El turno ha superado el tiempo máximo permitido. Inténtalo de nuevo."
 
 
 @pytest.fixture(autouse=True)
-def entorno_timeout_aislado(monkeypatch):
+def entorno_timeout_aislado(monkeypatch, entorno_api):
     """Usa una clave y cuota de prueba para no depender del entorno ni de otros tests."""
     monkeypatch.setattr(config, "API_KEY", CLAVE_PRUEBA)
     monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 10_000)
     monkeypatch.setattr(config, "ASK_TIMEOUT_SECONDS", 1)
+    global cliente
+    with TestClient(app) as cliente_activo:
+        cliente = cliente_activo
+        yield
 
 
 def test_timeout_predeterminado_si_la_variable_no_esta_configurada(monkeypatch):
@@ -42,7 +46,7 @@ def test_ask_lento_devuelve_504_con_mensaje_y_sin_secreto(monkeypatch, caplog):
     monkeypatch.setattr(config, "ASK_TIMEOUT_SECONDS", 0.01)
     caplog.set_level(logging.INFO)
 
-    def turno_lento(_datos):
+    def turno_lento(_datos, _session):
         time.sleep(0.05)
         return AskOut(
             respuesta="Respuesta simulada",
@@ -79,7 +83,7 @@ def test_ask_lento_devuelve_504_con_mensaje_y_sin_secreto(monkeypatch, caplog):
 def test_approve_no_aplica_el_timeout_de_ask(monkeypatch):
     monkeypatch.setattr(config, "ASK_TIMEOUT_SECONDS", 0.01)
 
-    def aprobacion_lenta(datos):
+    def aprobacion_lenta(datos, _session):
         time.sleep(0.05)
         return AskOut(
             respuesta="Decisión simulada",
@@ -105,4 +109,4 @@ def test_historial_no_aplica_el_timeout_de_ask(monkeypatch):
         "/threads/hilo-timeout/messages?api_key=" + CLAVE_PRUEBA
     )
 
-    assert respuesta.status_code == 501
+    assert respuesta.status_code == 404
