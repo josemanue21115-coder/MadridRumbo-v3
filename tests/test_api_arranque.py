@@ -19,7 +19,11 @@ def test_arranque_prepara_tablas_y_limpia_estado(entorno_api, monkeypatch):
         assert llamadas == ["preparar"]
         assert not historial.registro_temporal.conoce_hilo("anterior")
         assert cliente.get("/health").status_code == 200
-        respuesta = cliente.post("/ask", json={"pregunta": "Ruta de Sol a Atocha", "auto_aprobar": False})
+        respuesta = cliente.post(
+            "/ask",
+            params={"api_key": "clave-de-prueba"},
+            json={"pregunta": "Ruta de Sol a Atocha", "auto_aprobar": False},
+        )
         hilo = respuesta.json()["thread_id"]
         assert historial.registro_temporal.conoce_hilo(hilo)
     assert not historial.registro_temporal.conoce_hilo(hilo)

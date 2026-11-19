@@ -8,6 +8,8 @@ from src.api import servicio
 from src.clientes.cargar import GrafoNoDisponible
 from src.clientes.grafo_falso import GrafoFalso
 
+CLAVE_PRUEBA = "clave-de-prueba"
+
 
 def test_fallo_del_agente_en_ask_da_500_generico(cliente_api, monkeypatch):
     # RF-14: el mensaje es el genérico y no se cuela el detalle interno del fallo.
@@ -16,6 +18,7 @@ def test_fallo_del_agente_en_ask_da_500_generico(cliente_api, monkeypatch):
     assert r.status_code == 500
     assert r.json()["detail"] == config.API_ERROR_INTERNO
     assert "fallo simulado" not in r.text
+    assert CLAVE_PRUEBA not in r.text
 
 
 def test_fallo_del_agente_en_approve_da_500_generico(cliente_api, monkeypatch):
@@ -23,6 +26,7 @@ def test_fallo_del_agente_en_approve_da_500_generico(cliente_api, monkeypatch):
     r = cliente_api.post("/approve", json={"thread_id": "e1", "aprobado": True})
     assert r.status_code == 500
     assert r.json()["detail"] == config.API_ERROR_INTERNO
+    assert CLAVE_PRUEBA not in r.text
 
 
 def test_agente_no_disponible_da_500_generico(cliente_api, monkeypatch):
@@ -35,6 +39,7 @@ def test_agente_no_disponible_da_500_generico(cliente_api, monkeypatch):
     assert r.status_code == 500
     assert r.json()["detail"] == config.API_ERROR_INTERNO
     assert "detalle interno" not in r.text
+    assert CLAVE_PRUEBA not in r.text
 
 
 def test_historial_inexistente_da_404(cliente_api):

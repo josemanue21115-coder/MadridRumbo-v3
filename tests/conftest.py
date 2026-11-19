@@ -58,6 +58,8 @@ def entorno_api(monkeypatch, motor_api, sesiones_api):
     from src.api import historial, servicio
 
     monkeypatch.setenv(config.VARIABLE_MODO_SIMULADO, config.VALOR_MODO_SIMULADO)
+    monkeypatch.setattr(config, "API_KEY", "clave-de-prueba")
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 10_000)
     monkeypatch.setattr(servicio, "_agente", None)
     monkeypatch.setattr(servicio, "_planes_pendientes", {})
     monkeypatch.setattr(historial, "registro_temporal", historial.RegistroTemporal())
@@ -71,7 +73,7 @@ def entorno_api(monkeypatch, motor_api, sesiones_api):
 
     # Se conserva cualquier override previo y monkeypatch restaura el original.
     monkeypatch.setattr(
-        app,
+        app.aplicacion,
         "dependency_overrides",
         {**app.dependency_overrides, db.get_session: sesion_por_peticion},
     )
@@ -84,5 +86,13 @@ def cliente_api(entorno_api):
 
     from app import app
 
-    with TestClient(app) as cliente:
+    class ClienteAutenticado(TestClient):
+        """Añade la clave de test a las rutas protegidas de los tests funcionales."""
+
+        def request(self, method, url, **kwargs):
+            params = dict(kwargs.pop("params", {}) or {})
+            params.setdefault("api_key", "clave-de-prueba")
+            return super().request(method, url, params=params, **kwargs)
+
+    with ClienteAutenticado(app) as cliente:
         yield cliente
