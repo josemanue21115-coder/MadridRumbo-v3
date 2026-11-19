@@ -2,7 +2,6 @@
 
 Las rutas de app.py son finas a propósito: la lógica vive aquí para poder probarla aparte.
 """
-import logging
 import uuid
 from contextlib import contextmanager
 from typing import Any
@@ -17,8 +16,6 @@ from src.clientes.cargar import cargar_agente
 from src.clientes.contrato import estado_vacio
 from src.clientes.planes import ids_de_planes
 from src.history import save_closed_turn
-
-logger = logging.getLogger(__name__)
 
 # El agente se carga una sola vez y se reutiliza: guarda las conversaciones en memoria,
 # así que crear uno nuevo en cada petición le haría olvidar los planes pendientes.
@@ -41,14 +38,13 @@ def obtener_historial(session: Session, thread_id: str) -> list[MessageOut]:
 def _fallos_como_500():
     """Convierte cualquier fallo inesperado en un error 500 con un mensaje genérico en español.
 
-    El detalle técnico, que podría incluir datos internos, solo se anota en el registro del servidor.
+    El detalle técnico no se registra porque podría contener datos internos o conversacionales.
     """
     try:
         yield
     except HTTPException:
         raise
     except Exception:
-        logger.exception("Fallo inesperado al procesar la petición")
         raise HTTPException(status_code=500, detail=config.API_ERROR_INTERNO) from None
 
 

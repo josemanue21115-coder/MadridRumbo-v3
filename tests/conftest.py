@@ -77,12 +77,20 @@ def entorno_api(monkeypatch, motor_api, sesiones_api):
     )
 
 
+CLAVE_PRUEBA_API = "clave-de-prueba"
+
+
 @pytest.fixture
-def cliente_api(entorno_api):
-    """Cliente por caso que ejecuta startup/shutdown mediante su contexto."""
+def cliente_api(entorno_api, monkeypatch):
+    """Cliente por caso que ejecuta startup/shutdown y envía la clave de la API."""
     from fastapi.testclient import TestClient
 
+    import config
     from app import app
 
+    # La API exige clave: se fija una de prueba y se amplía el límite para no estorbar.
+    monkeypatch.setattr(config, "API_KEY", CLAVE_PRUEBA_API)
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 10_000)
     with TestClient(app) as cliente:
+        cliente.params = {"api_key": CLAVE_PRUEBA_API}
         yield cliente
