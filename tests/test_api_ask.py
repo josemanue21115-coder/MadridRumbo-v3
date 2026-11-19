@@ -1,6 +1,6 @@
 """Tests de POST /ask sin aprobación automática (spec 013, T4: RF-4, RF-5, RF-6 y RF-15).
 
-Usan el agente simulado, así que no gastan API ni dependen de claves.
+Usan el agente simulado y una clave fija de prueba, así que no gastan API.
 """
 import pytest
 
