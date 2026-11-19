@@ -2,7 +2,9 @@
 
 Fecha: 15/11/2026. Rama local: `feature/api-postgres-historial`.
 
-**Veredicto global: Parcial.** La implementación y la validación técnica de los
+> **Actualización del 19/11/2026: veredicto «Sí»; ver «Cierre de T19 y T20» al final.**
+
+**Veredicto a fecha 15/11/2026: Parcial.** La implementación y la validación técnica de los
 24 RF están verificadas. El responsable confirmó expresamente que queda pendiente
 la revisión conjunta con los compañeros de API y frontend. Por ello T19 y T20
 permanecen sin marcar y la especificación no se declara cerrada ni lista para
@@ -147,3 +149,45 @@ Se mantienen fuera de alcance Docker de producción, Render, autenticación y
 checkpoints persistentes. El historial no restaura planes pendientes y no se
 garantiza deduplicación de reenvíos HTTP ni continuidad HITL entre varios workers.
 La validación se ejecutó antes de los commits de entrega. Los commits posteriores se preparan por bloques con autorización del responsable; el push lo realiza él desde Visual Studio Code. No se ejecutaron merges ni se modificó `develop` o el estado de las PR.
+
+## Cierre de T19 y T20 — 19/11/2026
+
+Rama: `feature/historial-t19-t20`, creada desde `feature/api-postgres-historial` sin modificar esta última. Se integró `develop`, que ya incluye SPEC-017, SPEC-018 y SPEC-019 (clave de API, límite de peticiones, timeout, CORS y logs), y se resolvieron los conflictos en `app.py`, `src/api/servicio.py` y cuatro tests de API.
+
+### Cambios de integración
+
+- `app.py`: conserva el lifespan, la sesión por petición y la ruta real de historial; `/ask`, `/approve` y `/threads/{thread_id}/messages` exigen `validar_api_key`; `/ask` aplica el timeout (504) y pasa la sesión al servicio.
+- `src/api/servicio.py`: sin cambios de lógica; se conserva el guardado del turno.
+- Tests: `tests/conftest.py` hace que `cliente_api` envíe una clave de prueba; los tests de SPEC-017 y SPEC-019 pasan a esperar 404 (no 501) en el historial y aceptan la sesión por petición; `tests/test_api_postgresql.py` envía la clave.
+- La autenticación, que el alcance de 15/11 dejaba fuera, la aporta ahora SPEC-017.
+
+### Entorno
+
+Windows, Python 3.11.9, PostgreSQL 18 instalado en local (sin contenedor). Base y usuario `spec016` para las pruebas automáticas. Agente simulado, sin APIs de pago.
+
+### Resultados reales
+
+| Comando | Resultado |
+|---|---|
+| `python -m pytest -q -p no:cacheprovider -o addopts='' --tb=short`, sin URL de PostgreSQL | 1497 passed, 39 skipped in 33.67s. Los 9 tests de integración PostgreSQL de SPEC-016 quedan omitidos. |
+| El mismo comando con `SPEC016_TEST_DATABASE_URL` hacia `spec016` en PostgreSQL local | **1506 passed, 30 skipped in 36.85s.** |
+| `python -m pytest tests/test_api_postgresql.py -q -p no:cacheprovider` | 14 passed. |
+
+Omisiones justificadas (30): 18 de SPEC-014 que requieren su propia base temporal (`SPEC014_TEST_DATABASE_URL`) o SQLite entre procesos; 3 de compatibilidad con una copia del front (`SPEC016_FRONTEND_DIR`); 9 de `test_app_streamlit.py`, sustituidos por SPEC-015.
+
+### Comprobación manual con Streamlit (T19)
+
+API con PostgreSQL (`madridrumbo_prueba`), agente simulado y clave de API configurada; front de SPEC-015 sin modificar.
+
+- Aprobación: pregunta de ruta, **Aprobar**, respuesta «[Simulado] Plan aprobado…», **Nueva conversación**, **Cargar conversación** con el ID: reaparecen la pregunta y la respuesta.
+- Rechazo: pregunta de ruta, **Rechazar**, respuesta de rechazo, nueva conversación y carga por ID: reaparece la conversación.
+
+### Coordinación y limpieza
+
+- PR #6 aprobado por Rubén el 17/11/2026 tras probar con PostgreSQL real; la compatibilidad con el frontend la comprobó Guzmán el 19/11/2026.
+- No se usó contenedor Docker. Cada test PostgreSQL crea y elimina su propio esquema; `spec016` y `madridrumbo_prueba` son bases locales desechables sin datos reales.
+- La clave `clave-de-prueba` es ficticia y solo existe en los tests.
+
+### Veredicto
+
+**Sí** (propuesto): los 24 RF siguen cubiertos tras integrar SPEC-017 a SPEC-019 y la comprobación con el frontend está hecha. Pendiente de la confirmación de José al revisar estos cambios. Esta validación no autoriza la fusión.
