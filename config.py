@@ -39,6 +39,29 @@ elif EMBEDDING_PROVIDER == "gemini":
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+# Credencial y límites de protección de la API REST.
+API_KEY = os.getenv("API_KEY", "")
+
+# Orígenes de clientes web autorizados para solicitudes CORS.
+CORS_ORIGINS = [
+    origen.strip()
+    for origen in os.getenv("CORS_ORIGINS", "").split(",")
+    if origen.strip()
+]
+
+
+def _entero_positivo_entorno(nombre: str, predeterminado: int) -> int:
+    """Lee un entero positivo del entorno o devuelve su valor predeterminado."""
+    try:
+        valor = int(os.getenv(nombre, ""))
+    except (TypeError, ValueError):
+        return predeterminado
+    return valor if valor > 0 else predeterminado
+
+
+RATE_LIMIT_PER_MINUTE = _entero_positivo_entorno("RATE_LIMIT_PER_MINUTE", 30)
+ASK_TIMEOUT_SECONDS = _entero_positivo_entorno("ASK_TIMEOUT_SECONDS", 300)
+
 EMBED_BATCH_SIZE = 100
 EMBEDDINGS_JSON = OUTPUT_DIR / "embeddings.json"
 MAX_CHUNKS_EMBED: int | None = None  # None = todos; 50 puede dejar fuera FAQ/PDF

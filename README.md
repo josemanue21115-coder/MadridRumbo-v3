@@ -333,6 +333,18 @@ La documentación interactiva queda en `http://127.0.0.1:8000/docs`. Si ese puer
 MADRIDRUMBO_GRAFO=falso uvicorn app:app --reload
 ```
 
+#### CORS por entorno
+
+La API lee `CORS_ORIGINS` como una lista de orígenes separados por comas. En local, añade la variable a tu `.env` (creado a partir de `.env.example`) y ajusta los orígenes que necesites:
+
+```env
+CORS_ORIGINS=http://127.0.0.1:8000,http://localhost:8000,http://127.0.0.1:8501,http://localhost:3000
+```
+
+En las variables de entorno del servicio de la API en Render, configura `CORS_ORIGINS` con los orígenes correspondientes a ese entorno. No copies automáticamente los orígenes locales a producción. Tras cambiar la variable, reinicia o redespliega el servicio para que la API cargue la configuración.
+
+CORS controla qué respuestas cross-origin puede leer el navegador; no sustituye `API_KEY` ni bloquea solicitudes HTTP de otros clientes. Las llamadas que Streamlit realiza desde Python a la API no dependen de CORS.
+
 | Ruta | Para qué sirve |
 | --- | --- |
 | `GET /health` | Comprueba que el servicio está vivo e indica si el agente es real o simulado. |
