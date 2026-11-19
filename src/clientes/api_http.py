@@ -8,7 +8,7 @@ from urllib.request import Request, urlopen
 
 
 URL_BASE_PREDETERMINADA = "http://127.0.0.1:8000"
-TIMEOUT_SEGUNDOS = 15
+TIMEOUT_SEGUNDOS = 90
 
 
 class APIHttpError(Exception):
