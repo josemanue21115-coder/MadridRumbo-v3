@@ -31,14 +31,8 @@ async def lifespan(application: FastAPI):
     try:
         db.create_db_and_tables()
         motor = db.get_engine()
-    # Cambio para test
-    # except Exception:
-    #    raise RuntimeError(config.API_ERROR_ARRANQUE_DB) from None
     except Exception:
-        logger.exception("Fallo al preparar la persistencia PostgreSQL")
         raise RuntimeError(config.API_ERROR_ARRANQUE_DB) from None
-    
-    
     try:
         yield
     finally:
