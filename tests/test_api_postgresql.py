@@ -39,7 +39,10 @@ def api_postgresql(monkeypatch):
         motor = create_engine(url.update_query_dict({"options": f"-csearch_path={schema}"}))
         monkeypatch.setattr(db, "get_engine", lambda: motor)
         monkeypatch.setenv(config.VARIABLE_MODO_SIMULADO, config.VALOR_MODO_SIMULADO)
+        monkeypatch.setattr(config, "API_KEY", "clave-de-prueba")
+        monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 10_000)
         with TestClient(app) as cliente:
+            cliente.params = {"api_key": "clave-de-prueba"}
             yield cliente, motor
     finally:
         if motor is not None:
@@ -138,11 +141,13 @@ def test_historial_tras_reinicio_api(api_postgresql):
     entorno = os.environ.copy()
     entorno["DATABASE_URL"] = motor.url.render_as_string(hide_password=False)
     entorno["PYTHON_DOTENV_DISABLED"] = "1"
+    entorno["API_KEY"] = "clave-de-prueba"
     entorno[config.VARIABLE_MODO_SIMULADO] = config.VALOR_MODO_SIMULADO
     guardar = """
 from fastapi.testclient import TestClient
 from app import app
 with TestClient(app) as cliente:
+    cliente.params = {'api_key': 'clave-de-prueba'}
     assert cliente.post('/ask', json={'pregunta': 'Guardar entre procesos', 'thread_id': 'reinicio'}).status_code == 200
     assert cliente.post('/ask', json={'pregunta': 'Ruta de Sol a Atocha', 'thread_id': 'solo-temporal', 'auto_aprobar': False}).json()['pendiente_hitl']
     assert cliente.get('/threads/solo-temporal/messages').json() == []
@@ -152,6 +157,7 @@ print('guardado')
 from fastapi.testclient import TestClient
 from app import app
 with TestClient(app) as cliente:
+    cliente.params = {'api_key': 'clave-de-prueba'}
     respuesta = cliente.get('/threads/reinicio/messages')
     assert respuesta.status_code == 200
     assert [m['orden'] for m in respuesta.json()] == [1, 2]

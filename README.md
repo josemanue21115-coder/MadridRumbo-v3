@@ -348,7 +348,7 @@ La API lee `CORS_ORIGINS` como una lista de orígenes separados por comas. En lo
 CORS_ORIGINS=http://127.0.0.1:8000,http://localhost:8000,http://127.0.0.1:8501,http://localhost:3000
 ```
 
-En las variables de entorno del servicio de la API en Render, configura `CORS_ORIGINS` con los orígenes correspondientes a ese entorno. No copies automáticamente los orígenes locales a producción. Tras cambiar la variable, reinicia o redespliega el servicio para que la API cargue la configuración.
+En un entorno productivo, configura `CORS_ORIGINS` con los orígenes correspondientes a ese entorno. No copies automáticamente los orígenes locales a producción. Tras cambiar la variable, reinicia el servicio para que la API cargue la configuración.
 
 CORS controla qué respuestas cross-origin puede leer el navegador; no sustituye `API_KEY` ni bloquea solicitudes HTTP de otros clientes. Las llamadas que Streamlit realiza desde Python a la API no dependen de CORS.
 
@@ -409,10 +409,10 @@ Las pruebas de UI compatibles con SPEC-015 también son optativas: requieren
 `SPEC016_FRONTEND_DIR` con copias revisadas de `front.py` y `api_http.py` del
 frontend; `tests/test_api_frontend_compat.py` usa AppTest y sustituye solo el
 transporte de red hacia la API local en proceso. No modifica la rama del frontend.
-La revisión conjunta con sus responsables sigue pendiente antes del cierre de
-SPEC-016. Docker de aplicación, Render y la autenticación del backend permanecen
-en bloques separados; no se debe presentar esta API como lista para exposición
-pública por tener únicamente configurada una clave en el cliente.
+La revisión conjunta con sus responsables sigue siendo necesaria antes del cierre
+de SPEC-016. El `Dockerfile` permite validar localmente la API contra PostgreSQL;
+la elección y configuración del servicio de hosting queda fuera del alcance de
+esta fase.
 
 
 ### Imagen demo multimodal

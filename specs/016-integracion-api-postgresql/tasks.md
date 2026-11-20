@@ -1,7 +1,7 @@
 # Tareas — Spec 016
 
 > Basadas en la especificación y el plan aprobados el 2026-11-15.
-> Estado: T1–T18 completadas. T19 preparada técnicamente; T19/T20 pendientes de revisión conjunta API/frontend.
+> Estado: T1–T20 completadas. T19 y T20 cerradas el 19/11/2026 (ver `validacion.md`); pendiente la confirmación de José.
 > Una tarea cada vez. Tests primero. Marcar `[x]` solo después de verificarla.
 
 ## Reglas de ejecución
@@ -88,11 +88,11 @@
   **Depende de:** T17.
   **Hecho cuando:** `tests/test_api_postgresql.py::test_historial_tras_reinicio_api` guarda desde un proceso, termina y recupera el mismo historial desde otro; el test diferencia ese historial persistido de un hilo solo conocido temporalmente y no afirma restaurar planes pendientes.
 
-- [ ] **T19. Documentar y comprobar la compatibilidad con el frontend.** Actualizar instrucciones de arranque y lectura, ejemplos HTTP, errores y límites de reintentos; contrastar el contrato con SPEC-015 y coordinar la comprobación manual con sus responsables sin modificar su rama. (RF-01, RF-02, RF-03, RF-05, RF-06, RF-14, RF-19, RF-20, RF-22, RF-23, RF-24)
+- [x] **T19. Documentar y comprobar la compatibilidad con el frontend.** Actualizar instrucciones de arranque y lectura, ejemplos HTTP, errores y límites de reintentos; contrastar el contrato con SPEC-015 y coordinar la comprobación manual con sus responsables sin modificar su rama. (RF-01, RF-02, RF-03, RF-05, RF-06, RF-14, RF-19, RF-20, RF-22, RF-23, RF-24)
   **Depende de:** T18.
   **Hecho cuando:** `README.md` describe los códigos 200/404/422/500, la necesidad de PostgreSQL al arrancar y la consulta de historial tras pérdida de respuesta; se registra evidencia del recorrido simulado pregunta → decisión → recarga, incluido rechazo con `done=false`, o se identifica explícitamente la coordinación pendiente sin darla por superada.
 
-- [ ] **T20. Validación final RF por RF.** Ejecutar la regresión completa, las pruebas de PostgreSQL y la revisión de credenciales; eliminar el entorno temporal de esta validación y redactar `validacion.md` con evidencias verificables. (RF-01, RF-02, RF-03, RF-04, RF-05, RF-06, RF-07, RF-08, RF-09, RF-10, RF-11, RF-12, RF-13, RF-14, RF-15, RF-16, RF-17, RF-18, RF-19, RF-20, RF-21, RF-22, RF-23, RF-24)
+- [x] **T20. Validación final RF por RF.** Ejecutar la regresión completa, las pruebas de PostgreSQL y la revisión de credenciales; eliminar el entorno temporal de esta validación y redactar `validacion.md` con evidencias verificables. (RF-01, RF-02, RF-03, RF-04, RF-05, RF-06, RF-07, RF-08, RF-09, RF-10, RF-11, RF-12, RF-13, RF-14, RF-15, RF-16, RF-17, RF-18, RF-19, RF-20, RF-21, RF-22, RF-23, RF-24)
   **Depende de:** T19 y coordinación de API/frontend exigida por la especificación.
   **Hecho cuando:** `validacion.md` contiene trazabilidad de los 24 requisitos, comandos, versiones, resultados reales, omisiones justificadas y veredicto «Sí» con todos los criterios cumplidos; se acredita la limpieza del contenedor y sus volúmenes de pruebas. Si falta alguna evidencia, el veredicto será «Parcial» y T20 permanecerá pendiente. La revisión humana de SPEC-014 debe constar antes de fusionar la integración; esta tarea no autoriza la fusión.
 
