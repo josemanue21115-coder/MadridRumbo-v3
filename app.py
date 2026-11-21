@@ -43,7 +43,7 @@ async def lifespan(application: FastAPI):
 
 
 app = FastAPI(
-    title="MadridRumbo API",
+    title="MadridRumbo API - TEST Environment",
     description="Asistente de transporte público de Madrid: preguntas al agente y aprobación de planes.",
     version="1.0.0",
     lifespan=lifespan,
