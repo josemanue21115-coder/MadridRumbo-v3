@@ -6,7 +6,8 @@ from time import perf_counter
 from typing import Any
 
 
-_logger = logging.getLogger(__name__)
+# Uvicorn configura este logger para escribir en la consola, que Render recoge.
+_logger = logging.getLogger("uvicorn.error")
 _RUTA_HISTORIAL = re.compile(r"^/threads/([^/]+)/messages$")
 
 

@@ -10,7 +10,6 @@ pytest-cache-files-*
 .mypy_cache
 .ruff_cache
 output
-chroma
 *.log
 *.sqlite
 *.sqlite3
@@ -22,3 +21,4 @@ entregables
 *.pptx
 *.docx
 *.pdf
+!chroma/**

@@ -67,7 +67,7 @@ def test_ask_lento_devuelve_504_con_mensaje_y_sin_secreto(monkeypatch, caplog):
     eventos_peticion = [
         json.loads(registro.getMessage())
         for registro in caplog.records
-        if registro.name == "src.api.logs_peticion"
+        if registro.name == "uvicorn.error"
     ]
     assert len(eventos_peticion) == 1
     assert eventos_peticion[0]["event"] == "protected_request"

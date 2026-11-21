@@ -2,6 +2,9 @@
 import asyncio
 import json
 import logging
+import subprocess
+import sys
+from pathlib import Path
 from threading import Event
 
 import pytest
@@ -16,6 +19,7 @@ from src.clientes.grafo_falso import GrafoFalso
 
 
 CLAVE_PRUEBA = "clave-logs-test"
+RAIZ = Path(__file__).resolve().parents[1]
 cliente = None
 
 
@@ -261,7 +265,7 @@ def _texto_logs_del_servicio(caplog):
     """Formatea solo logs de la API/servidor, incluyendo posibles tracebacks."""
     nombres = {
         "app",
-        "src.api.logs_peticion",
+        "uvicorn.error",
         "src.api.servicio",
         "uvicorn.access",
     }
@@ -338,3 +342,23 @@ def test_log_de_excepcion_no_contiene_detalle_sensible(monkeypatch, caplog):
     assert api_key not in texto_logs
     assert texto_pregunta not in texto_logs
     assert detalle_excepcion not in texto_logs
+
+
+def test_evento_se_emite_en_la_salida_de_consola_de_uvicorn():
+    """El evento INFO llega a stderr con la configuración estándar de Uvicorn."""
+    codigo = """
+import logging.config
+import uvicorn
+logging.config.dictConfig(uvicorn.config.LOGGING_CONFIG)
+from src.api.logs_peticion import _logger
+_logger.info('{\"event\":\"protected_request\"}')
+"""
+    resultado = subprocess.run(
+        [sys.executable, "-c", codigo],
+        cwd=RAIZ,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert '{"event":"protected_request"}' in resultado.stderr
