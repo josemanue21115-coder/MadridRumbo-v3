@@ -340,6 +340,8 @@ La documentación interactiva queda en `http://127.0.0.1:8000/docs`. Si ese puer
 MADRIDRUMBO_GRAFO=falso uvicorn app:app --reload
 ```
 
+Para desplegar la API con PostgreSQL en Render y consumirla desde Streamlit en local, consulta la [guía de despliegue en Render](docs/guía-despliegue-render.md).
+
 #### CORS por entorno
 
 La API lee `CORS_ORIGINS` como una lista de orígenes separados por comas. En local, añade la variable a tu `.env` (creado a partir de `.env.example`) y ajusta los orígenes que necesites:
