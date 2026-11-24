@@ -1,4 +1,4 @@
-# Informe de decisiones — MadridRumbo (Project Break 2)
+# Informe de decisiones — MadridRumbo (Project Break 3)
 
 > Grupo 2: Rubén Jiménez Gutiérrez, Guzmán López Barceló, José Manuel Gil Ruiz.
 
@@ -25,6 +25,29 @@ Todas viven en `src/tools/` y se ejecutan a través de `ejecutar_tool(nombre, ar
 | `describir_imagen` | Multimodal | Lee una imagen de `assets/` con Gemini y devuelve en español los textos y cifras visibles, sin inventar. |
 | `rag_ask` | RAG | Delega en `rag.responder.rag_ask`. |
 | `planificar_ruta` | API externa + RAG | Convierte origen y destino en coordenadas (Nominatim), pide el itinerario en transporte público (Google Routes) y consulta al RAG la zona y el precio. Si procede, añade una alternativa en BiciMAD (EMT) y el tiempo en el origen (Open-Meteo). Si falla la parte de BiciMAD o el clima, la ruta de transporte llega igual con un aviso. |
+
+## 2.1. Persistencia, historial y empaquetado local
+
+Estas decisiones documentan la persistencia, el historial y el empaquetado local:
+
+- **PostgreSQL como persistencia de la API.** Se eligió PostgreSQL para conservar
+  los turnos finalizados fuera de la memoria del proceso. SQLModel concentra los
+  modelos y la conexión, y la API crea las tablas que falten al arrancar.
+- **Historial por `thread_id`.** Cada turno confirmado guarda la pregunta de la
+  persona y la respuesta final como mensajes `user` y `assistant`. Los planes
+  pendientes permanecen en memoria y no se persisten hasta cerrar el turno.
+- **Separación entre memoria y base de datos.** PostgreSQL conserva el historial,
+  pero no rehidrata el estado interno del agente ni los planes pendientes tras un
+  reinicio.
+- **Docker para validación local.** Se creó una imagen Python 3.11-slim para
+  arrancar FastAPI y se validó su conexión con un PostgreSQL temporal en una red
+  Docker local. No se configura ningún servicio de hosting.
+- **Dependencias mínimas.** Se eliminó `sentence-transformers` porque no se usa
+  en el código de la API y añadía dependencias pesadas innecesarias a la imagen.
+- **Índice Chroma versionado.** Se decidió conservar `chroma/chroma.sqlite3`
+  como artefacto generado del proyecto. Las reglas generales de Git siguen
+  ignorando otras bases de datos locales; solo este archivo se permite de forma
+  explícita.
 
 ## 3. HITL: una aprobación y un rechazo
 
