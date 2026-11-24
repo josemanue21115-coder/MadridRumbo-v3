@@ -348,7 +348,7 @@ La API lee `CORS_ORIGINS` como una lista de orígenes separados por comas. En lo
 CORS_ORIGINS=http://127.0.0.1:8000,http://localhost:8000,http://127.0.0.1:8501,http://localhost:3000
 ```
 
-En un entorno productivo, configura `CORS_ORIGINS` con los orígenes correspondientes a ese entorno. No copies automáticamente los orígenes locales a producción. Tras cambiar la variable, reinicia el servicio para que la API cargue la configuración.
+En un entorno productivo, como el servicio de la API en Render, configura `CORS_ORIGINS` con los orígenes correspondientes a ese entorno. No copies automáticamente los orígenes locales a producción. Tras cambiar la variable, reinicia el servicio para que la API cargue la configuración.
 
 CORS controla qué respuestas cross-origin puede leer el navegador; no sustituye `API_KEY` ni bloquea solicitudes HTTP de otros clientes. Las llamadas que Streamlit realiza desde Python a la API no dependen de CORS.
 
@@ -431,7 +431,7 @@ empaquetado local de la API.
   artefacto versionado del proyecto y se incluye expresamente en la imagen cuando
   se construye el contenedor.
 
-El alcance de esta contribución es local: no configura ningún servicio de hosting.
+El despliegue de la API en Render se describe en la [guía de despliegue en Render](docs/guía-despliegue-render.md).
 
 
 ### Imagen demo multimodal
