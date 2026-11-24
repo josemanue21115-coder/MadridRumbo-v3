@@ -1,6 +1,6 @@
 # Validación — Spec 019
 
-> Fecha: 2026-11-21 · Resultado de `python -m pytest`: 1499 passed / 2 failed / 39 skipped
+> Fecha: 2026-11-24 · Resultado de `python -m pytest`: 1500 passed / 1 failed / 39 skipped
 
 | RF | Cómo se comprueba | Test o comprobación manual | Resultado |
 |---|---|---|---|
@@ -23,7 +23,7 @@
 - [x] Las pruebas inspeccionan logs de aplicación, servicio y servidor para descartar `api_key`, secretos, texto conversacional y detalles sensibles.
 - [x] El evento JSON se emite a la consola con la configuración estándar de Uvicorn para que el entorno de despliegue pueda recogerlo.
 
-La ejecución global de `python -m pytest` dio 1499 pasaron, 39 omitidas y 2 fallaron. Los fallos actuales son `tests/test_api_cors.py::test_readme_documenta_cors_local_y_render` y `tests/test_docker_artifact.py::test_dockerignore_excluye_secretos_y_artifactos`, ajenos a la spec 019. Los 51 tests de logs, seguridad, errores y timeout pasan.
+La ejecución global de `python -m pytest` dio 1500 pasaron, 39 omitidas y 1 falló: `tests/test_api_cors.py::test_readme_documenta_cors_local_y_render`, ajeno a la spec 019 (el README debe mencionar el servicio de la API en Render; se corrige en otra PR). Los 51 tests de logs, seguridad, errores y timeout pasan.
 
 ## Fuera de spec
 
@@ -31,4 +31,4 @@ Nada observable fuera de los comportamientos especificados. La escritura a `stde
 
 ## Veredicto
 
-**Sí** — RF-1 a RF-10 pasan las pruebas locales específicas de la funcionalidad. La suite global tiene dos fallos ajenos a esta spec, indicados arriba.
+**Sí** — RF-1 a RF-10 pasan las pruebas locales específicas de la funcionalidad. La suite global tiene un fallo ajeno a esta spec, indicado arriba.
