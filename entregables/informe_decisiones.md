@@ -41,7 +41,7 @@ Estas decisiones documentan la persistencia, el historial y el empaquetado local
   reinicio.
 - **Docker para validación local.** Se creó una imagen Python 3.11-slim para
   arrancar FastAPI y se validó su conexión con un PostgreSQL temporal en una red
-  Docker local. No se configura ningún servicio de hosting.
+  Docker local. El despliegue en Render se documenta en `docs/guía-despliegue-render.md`.
 - **Dependencias mínimas.** Se eliminó `sentence-transformers` porque no se usa
   en el código de la API y añadía dependencias pesadas innecesarias a la imagen.
 - **Índice Chroma versionado.** Se decidió conservar `chroma/chroma.sqlite3`
