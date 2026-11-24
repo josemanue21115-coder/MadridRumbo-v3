@@ -29,7 +29,7 @@ htmlcov/
 
 # Output, ChromaDB y archivos generados
 output/
-chroma/
+chroma/*
 embeddings.json
 rag.log
 *.log
@@ -38,6 +38,7 @@ rag.log
 *.db
 *.sqlite
 *.sqlite3
+!chroma/chroma.sqlite3
 
 # Archivos de prueba temporales
 prueba_*.py

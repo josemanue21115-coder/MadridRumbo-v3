@@ -25,4 +25,4 @@ def test_dockerignore_excluye_secretos_y_artifactos():
     assert "tests" in excluidos
     assert "docs" in excluidos
     assert "specs" in excluidos
-    assert "chroma" in excluidos
+    assert "!chroma/**" in excluidos
