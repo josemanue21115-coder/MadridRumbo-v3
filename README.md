@@ -1,6 +1,6 @@
 # MadridRumbo
 
-> **Project Break 2 · Sprints 11–13 | AI Engineering Bootcamp**  
+> **Project Break 3 · Sprints 11–13 | AI Engineering Bootcamp**<br>
 > **Grupo 2:** Rubén Jiménez Gutiérrez, Guzmán López Barceló, José Manuel Gil Ruiz.
 
 ## Alcance
@@ -350,7 +350,7 @@ La API lee `CORS_ORIGINS` como una lista de orígenes separados por comas. En lo
 CORS_ORIGINS=http://127.0.0.1:8000,http://localhost:8000,http://127.0.0.1:8501,http://localhost:3000
 ```
 
-En un entorno productivo, configura `CORS_ORIGINS` con los orígenes correspondientes a ese entorno. No copies automáticamente los orígenes locales a producción. Tras cambiar la variable, reinicia el servicio para que la API cargue la configuración.
+En un entorno productivo, como el servicio de la API en Render, configura `CORS_ORIGINS` con los orígenes correspondientes a ese entorno. No copies automáticamente los orígenes locales a producción. Tras cambiar la variable, reinicia el servicio para que la API cargue la configuración.
 
 CORS controla qué respuestas cross-origin puede leer el navegador; no sustituye `API_KEY` ni bloquea solicitudes HTTP de otros clientes. Las llamadas que Streamlit realiza desde Python a la API no dependen de CORS.
 
@@ -412,9 +412,28 @@ Las pruebas de UI compatibles con SPEC-015 también son optativas: requieren
 frontend; `tests/test_api_frontend_compat.py` usa AppTest y sustituye solo el
 transporte de red hacia la API local en proceso. No modifica la rama del frontend.
 La revisión conjunta con sus responsables sigue siendo necesaria antes del cierre
-de SPEC-016. El `Dockerfile` permite validar localmente la API contra PostgreSQL;
-la elección y configuración del servicio de hosting queda fuera del alcance de
-esta fase.
+de SPEC-016. El `Dockerfile` permite validar localmente la API contra PostgreSQL.
+
+### Persistencia, historial y empaquetado local
+
+El proyecto integra la persistencia del historial de conversaciones y el
+empaquetado local de la API.
+
+- **PostgreSQL y SQLModel:** se crean las tablas necesarias al arrancar la API y
+  se utiliza `DATABASE_URL` para seleccionar la base de datos.
+- **Historial:** los turnos finalizados se guardan como mensajes `user` y
+  `assistant`, asociados a un `thread_id`, y se recuperan mediante
+  `GET /threads/{thread_id}/messages`.
+- **Docker:** la API se ejecuta con Python 3.11 en una imagen ligera. El contenedor
+  puede conectarse a un PostgreSQL temporal mediante una red Docker local.
+- **Validación:** se comprobaron `GET /health`, `POST /ask` y la recuperación del
+  historial desde PostgreSQL. También se validó la construcción de la imagen con
+  `docker build`.
+- **Chroma:** el índice persistente `chroma/chroma.sqlite3` se conserva como
+  artefacto versionado del proyecto y se incluye expresamente en la imagen cuando
+  se construye el contenedor.
+
+El despliegue de la API en Render se describe en la [guía de despliegue en Render](docs/guía-despliegue-render.md).
 
 
 ### Imagen demo multimodal
