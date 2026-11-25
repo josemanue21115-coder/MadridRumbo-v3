@@ -2,9 +2,7 @@
 
 > Grupo 2: Rubén Jiménez Gutiérrez, Guzmán López Barceló, José Manuel Gil Ruiz.
 
-## 0. Ampliación del alcance y metodología SDD
-
-Se ha decidido ampliar el alcance del proyecto. Originalmente este se restringía a tarifas y normativa relacionada con la red de transporte del Consorcio Regional de Transportes de Madrid. Al convertir el proyecto de un sistema RAG a otro multiagente las posibilidades de resolución de consultas se amplían enormemente, permitiendo ampliar el alcance a la consulta de rutas, horarios e información relacionada con el viaje.
+## 0. Metodología SDD
 
 Las funcionalidades de esta parte se desarrollaron con Spec-Driven Development, cada una con spec (requisitos en notación EARS), plan, tareas y validación.
 
@@ -68,7 +66,7 @@ Se decidió que el planificador de rutas, tras la pausa HITL, si se producía re
 
 ## 5. Clientes CLI y Streamlit
 
-CLI y Streamlit son clientes del mismo grafo, con la pausa HITL, trazas visibles y nueva conversación. 
+La CLI es cliente directo del grafo y Streamlit lo es de la API (por HTTP, con clave), ambos con la pausa HITL, trazas visibles y nueva conversación.
 
 **Decisiones.**
 - **Contrato aislado en un solo archivo.** Adaptar el cliente al grafo real fue cambiar el formato de `plan` y añadir el identificador del plan, no reescribir nada.
@@ -76,6 +74,32 @@ CLI y Streamlit son clientes del mismo grafo, con la pausa HITL, trazas visibles
 - **«Pasos seguidos» es un resumen, no el registro.** Al adoptar el registro estructurado (entradas con la entrada y la salida completas de cada nodo y tool), el desplegable del chat llegó a mostrar unos 9.700 caracteres en una ruta simple. Pasó a resumirse en una línea de flujo, los pasos de control y las tools, y el detalle completo quedó en el panel de depuración. Con el registro estructurado ya se puede mostrar qué nodos actuaron, algo que antes el contrato no permitía.
 - **El mensaje se dibuja antes de llamar al grafo.** Streamlit solo pintaba la pregunta al terminar el turno porque el historial se dibuja antes de la llamada; ahora se dibuja la burbuja y un indicador de espera primero.
 - **Demo cambiada.** Se sustituyó el pedido de la imagen por una ruta porque la ruta es el único flujo que enseña el HITL. La imagen demo puede seleccionarse mediante su referencia literal, pero no genera una pausa HITL ni habilita subida de archivos.
+
+## 5.1. API REST, seguridad y despliegue
+
+La API (FastAPI) expone el mismo agente por HTTP como cliente fino: traslada la pregunta o la decisión al agente y devuelve su respuesta.
+
+**Decisiones.**
+- **Rutas.** `GET /health` (público), `POST /ask`, `POST /approve` (aprobar o rechazar un plan HITL) y `GET /threads/{thread_id}/messages` (historial).
+- **Límite de tiempo.** `/ask` ejecuta el agente en un hilo aparte y responde 504 si supera 300 s.
+- **Seguridad.** Clave en el parámetro `api_key`: incorrecta da 401; sin clave configurada en el servidor da 503 (no queda abierta); más de 30 peticiones por minuto da 429.
+- **CORS y logs.** Orígenes autorizados con `CORS_ORIGINS` (solo GET y POST; Streamlit no lo necesita). Un log JSON por petición, sin clave ni texto de la conversación, por la consola de Uvicorn para que Render lo recoja.
+- **Despliegue.** Docker en Render con PostgreSQL gestionado; `chroma/chroma.sqlite3` va versionado dentro de la imagen. `MADRIDRUMBO_GRAFO=falso` permite probar sin gastar API.
+- **Render gratuito.** Se duerme: la primera petición puede tardar cerca de 1 minuto, por eso el cliente de Streamlit espera hasta 90 s.
+
+---
+
+(NOTAS) 
+- Incluido en el front una sección de consulta de conversación, comprobar el estado de la API y selección de aprovación automático de un único plan.
+
+
+`RATE_LIMIT_PER_MINUTE` (límite de peticiones por minuto, 30 por defecto) y `ASK_TIMEOUT_SECONDS` (segundos máximos de `/ask`, 300 por defecto) son variables de entorno.
+
+ogs. Se configuraron para salir por la consola de Uvicorn (logger `uvicorn.error`) y así aparecen en los Logs de Render. Falta ampliar: por qué no bastaba el logger anterior y cómo se comprobó en Render. -->
+
+Chroma en el repositorio. Se añadió `chroma/chroma.sqlite3` al repositorio y a la imagen de Docker para poder desplegar la API con el RAG real, ajustando `.gitignore` y `.dockerignore`. Falta ampliar: tamaño (unos 64 MB), por qué solo ese archivo y fijar la versión de `chromadb` con la que se creó el índice.
+
+---
 
 ## 6. Rutas, BiciMAD y clima
 
