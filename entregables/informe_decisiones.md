@@ -2,9 +2,7 @@
 
 > Grupo 2: Rubén Jiménez Gutiérrez, Guzmán López Barceló, José Manuel Gil Ruiz.
 
-## 0. Ampliación del alcance y metodología SDD
-
-Se ha decidido ampliar el alcance del proyecto. Originalmente este se restringía a tarifas y normativa relacionada con la red de transporte del Consorcio Regional de Transportes de Madrid. Al convertir el proyecto de un sistema RAG a otro multiagente las posibilidades de resolución de consultas se amplían enormemente, permitiendo ampliar el alcance a la consulta de rutas, horarios e información relacionada con el viaje.
+## 0. Metodología SDD
 
 Las funcionalidades de esta parte se desarrollaron con Spec-Driven Development, cada una con spec (requisitos en notación EARS), plan, tareas y validación.
 
@@ -88,6 +86,20 @@ La API (FastAPI) expone el mismo agente por HTTP como cliente fino: traslada la 
 - **CORS y logs.** Orígenes autorizados con `CORS_ORIGINS` (solo GET y POST; Streamlit no lo necesita). Un log JSON por petición, sin clave ni texto de la conversación, por la consola de Uvicorn para que Render lo recoja.
 - **Despliegue.** Docker en Render con PostgreSQL gestionado; `chroma/chroma.sqlite3` va versionado dentro de la imagen. `MADRIDRUMBO_GRAFO=falso` permite probar sin gastar API.
 - **Render gratuito.** Se duerme: la primera petición puede tardar cerca de 1 minuto, por eso el cliente de Streamlit espera hasta 90 s.
+
+---
+
+(NOTAS) 
+- Incluido en el front una sección de consulta de conversación, comprobar el estado de la API y selección de aprovación automático de un único plan.
+
+
+`RATE_LIMIT_PER_MINUTE` (límite de peticiones por minuto, 30 por defecto) y `ASK_TIMEOUT_SECONDS` (segundos máximos de `/ask`, 300 por defecto) son variables de entorno.
+
+ogs. Se configuraron para salir por la consola de Uvicorn (logger `uvicorn.error`) y así aparecen en los Logs de Render. Falta ampliar: por qué no bastaba el logger anterior y cómo se comprobó en Render. -->
+
+Chroma en el repositorio. Se añadió `chroma/chroma.sqlite3` al repositorio y a la imagen de Docker para poder desplegar la API con el RAG real, ajustando `.gitignore` y `.dockerignore`. Falta ampliar: tamaño (unos 64 MB), por qué solo ese archivo y fijar la versión de `chromadb` con la que se creó el índice.
+
+---
 
 ## 6. Rutas, BiciMAD y clima
 
