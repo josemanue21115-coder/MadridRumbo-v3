@@ -62,8 +62,16 @@ El sistema separa la preparación offline del corpus de la conversación online.
 
                          CONSULTA Y CONVERSACIÓN
 
- CLI / Streamlit
-        ↓
+ CLI (main.py)        Streamlit (front.py)
+       │                      │ HTTP + api_key
+       │                      ↓
+       │            API FastAPI (app.py) ──────→ PostgreSQL
+       │            /health · /ask · /approve    (historial por thread_id)
+       │            /threads/{id}/messages
+       │            clave · límite · timeout · CORS · logs
+       │                      │
+       └──────────┬───────────┘
+                  ↓
  src.agent (fachada pública)
         ↓
  LangGraph: Supervisor → especialistas → Sintetizador
@@ -77,6 +85,15 @@ El sistema separa la preparación offline del corpus de la conversación online.
  respuesta, planes, log, traza, HITL y estado por thread_id
 ```
 
+**Despliegue.** La API se empaqueta con Docker y se publica en Render junto a una base de datos PostgreSQL; Streamlit se ejecuta en local y la consume por HTTPS.
+
+```text
+ Dockerfile ──→ Render: Web Service (Docker) ──→ Render: PostgreSQL
+                  │   imagen con chroma/chroma.sqlite3
+                  └── variables: API_KEY · DATABASE_URL · claves del proveedor
+
+ Streamlit (local) ── HTTPS + api_key ──→ https://<servicio>.onrender.com
+```
 El supervisor pide al modelo una lista JSON de roles válidos y aplica las reglas de seguridad en Python. Si la respuesta del proveedor falla, no es JSON válido o contiene roles incorrectos, se usa un fallback determinista y se conserva un diagnóstico técnico seguro. Las consultas textuales sobre tarifas se redirigen al RAG si no aportan una imagen válida; una mención a una foto o cartel no basta.
 
 ### Grafo multiagente
@@ -140,7 +157,9 @@ Mientras haya un plan pendiente, los clientes bloquean mensajes nuevos. Un recha
 ```text
 MadridRumbo/
 ├── main.py                         # Cliente CLI del grafo
-├── front.py                          # Cliente web Streamlit del mismo grafo
+├── front.py                        # Cliente web Streamlit de la API (HTTP)
+├── app.py                          # API REST (FastAPI)
+├── Dockerfile · .dockerignore      # Imagen Docker de la API
 ├── config.py                       # Configuración centralizada
 ├── model_auth.py                   # Lectura/solicitud de claves de modelos
 ├── requirements.txt
@@ -155,16 +174,18 @@ MadridRumbo/
 │   ├── agent.py · graph.py · estado.py
 │   ├── supervisor.py · supervisor_reglas.py · catalogo_roles.py
 │   ├── sintetizador.py · depuracion.py · modelos.py · reloj.py
+│   ├── db.py · history.py · models.py   # PostgreSQL (SQLModel) e historial
+│   ├── api/                        # Esquemas, servicio, historial, seguridad y logs de la API
 │   ├── agents/                     # rag, horarios, rutas, auxiliar y tarifas
 │   ├── tools/                      # allowlist y herramientas del grafo
-│   └── clientes/                   # contrato, sesión, CLI, presentación y modo simulado
+│   └── clientes/                   # contrato, sesión, CLI, cliente HTTP, presentación y modo simulado
 ├── entregables/                    # Entregables del proyecto
 ├── data/                           # Corpus CRTM
 ├── assets/                         # Icono e imagen demo
 ├── output/                         # Artefactos generados
-├── chroma/                         # Índice vectorial persistente, generado localmente
+├── chroma/                         # Índice vectorial persistente (chroma.sqlite3 versionado)
 ├── specs/                          # Especificaciones, planes, tareas y validaciones SDD
-├── docs/                           # Constitución, plantillas y guía de tests
+├── docs/                           # Constitución, plantillas, guía de tests y guía de despliegue en Render
 ├── tests/                          # Suite sin llamadas a servicios reales
 └── AGENTS.md                       # Guía del proyecto para el agente utilizado en SDD
 ```
@@ -199,7 +220,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-El stack utiliza Python, LangChain, LangGraph, ChromaDB, `google-genai`, Streamlit y pytest, entre otras dependencias indicadas en `requirements.txt`.
+El stack utiliza Python, LangChain, LangGraph, ChromaDB, `google-genai`, FastAPI, Uvicorn, SQLModel con PostgreSQL, Streamlit y pytest, entre otras dependencias indicadas en `requirements.txt`; la API se empaqueta con Docker.
 
 ### 3. Configurar las variables de entorno
 
@@ -212,9 +233,13 @@ GOOGLE_ROUTES_API_KEY=tu_clave_de_google_routes
 NOMINATIM_CONTACTO=tu_email_o_contacto
 EMT_CLIENT_ID=tu_client_id_de_la_emt
 EMT_PASS_KEY=tu_passkey_de_la_emt
+API_KEY=una_clave_larga_y_aleatoria
+DATABASE_URL=postgresql://usuario:contraseña@localhost:5432/base
 ```
 
 `GEMINI_API_KEY` es necesaria para generación, embeddings Gemini, el supervisor/especialistas y la visión. `OPENAI_API_KEY` solo es necesaria si se cambia el proveedor de embeddings en `config.py`. Las rutas reales requieren además [`GOOGLE_ROUTES_API_KEY`](https://developers.google.com/maps/documentation/routes/get-api-key?hl=es-419&utm_source=chatgpt.com) y un contacto para identificar la aplicación ante Nominatim. [`EMT_CLIENT_ID`](https://mobilitylabs.emtmadrid.es/) y [`EMT_PASS_KEY`](https://mobilitylabs.emtmadrid.es/) solo hacen falta para la alternativa en BiciMAD: sin ellas la ruta funciona igual, sin bici. Open-Meteo no necesita clave. Para Nominamit solamente hay que poner un correo, no hay que registrarse en ningún sitio.
+
+`API_KEY` y `DATABASE_URL` solo hacen falta para la API: la primera protege sus endpoints y la usa también Streamlit; la segunda indica el PostgreSQL donde se guarda el historial. `CORS_ORIGINS` y `API_BASE_URL` son opcionales y se explican en las secciones de la API y de Streamlit.
 
 > No incluyas claves en el código, en documentación ni en el repositorio.
 
@@ -309,6 +334,13 @@ python main.py --demo --auto-aprobar
 La demo usa conversaciones independientes para tres pedidos: horarios («¿Hasta qué hora hay metro hoy?»), ruta («¿Cómo puedo ir desde la Puerta del Sol hasta la Estación de Atocha?»), y una pregunta fuera de corpus («¿Cuál es la capital de Francia?»). La opción `--auto-aprobar` solo es válida junto con `--demo`; cuando hay varias rutas, aprueba la primera.
 
 ### Interfaz web con Streamlit
+
+Streamlit es un cliente de la API: no ejecuta el grafo, solo le envía las preguntas por HTTP. Necesita una API en marcha (en local, ver la sección siguiente, o la desplegada en Render) y la clave en `.env`:
+
+```env
+API_KEY=la_misma_clave_que_usa_la_API
+API_BASE_URL=https://<servicio>.onrender.com   # solo si la API no está en local
+```
 
 ```bash
 streamlit run front.py
