@@ -68,7 +68,7 @@ Se decidió que el planificador de rutas, tras la pausa HITL, si se producía re
 
 ## 5. Clientes CLI y Streamlit
 
-CLI y Streamlit son clientes del mismo grafo, con la pausa HITL, trazas visibles y nueva conversación. 
+La CLI es cliente directo del grafo y Streamlit lo es de la API (por HTTP, con clave), ambos con la pausa HITL, trazas visibles y nueva conversación.
 
 **Decisiones.**
 - **Contrato aislado en un solo archivo.** Adaptar el cliente al grafo real fue cambiar el formato de `plan` y añadir el identificador del plan, no reescribir nada.
@@ -76,6 +76,18 @@ CLI y Streamlit son clientes del mismo grafo, con la pausa HITL, trazas visibles
 - **«Pasos seguidos» es un resumen, no el registro.** Al adoptar el registro estructurado (entradas con la entrada y la salida completas de cada nodo y tool), el desplegable del chat llegó a mostrar unos 9.700 caracteres en una ruta simple. Pasó a resumirse en una línea de flujo, los pasos de control y las tools, y el detalle completo quedó en el panel de depuración. Con el registro estructurado ya se puede mostrar qué nodos actuaron, algo que antes el contrato no permitía.
 - **El mensaje se dibuja antes de llamar al grafo.** Streamlit solo pintaba la pregunta al terminar el turno porque el historial se dibuja antes de la llamada; ahora se dibuja la burbuja y un indicador de espera primero.
 - **Demo cambiada.** Se sustituyó el pedido de la imagen por una ruta porque la ruta es el único flujo que enseña el HITL. La imagen demo puede seleccionarse mediante su referencia literal, pero no genera una pausa HITL ni habilita subida de archivos.
+
+## 5.1. API REST, seguridad y despliegue
+
+La API (FastAPI) expone el mismo agente por HTTP como cliente fino: traslada la pregunta o la decisión al agente y devuelve su respuesta.
+
+**Decisiones.**
+- **Rutas.** `GET /health` (público), `POST /ask`, `POST /approve` (aprobar o rechazar un plan HITL) y `GET /threads/{thread_id}/messages` (historial).
+- **Límite de tiempo.** `/ask` ejecuta el agente en un hilo aparte y responde 504 si supera 300 s.
+- **Seguridad.** Clave en el parámetro `api_key`: incorrecta da 401; sin clave configurada en el servidor da 503 (no queda abierta); más de 30 peticiones por minuto da 429.
+- **CORS y logs.** Orígenes autorizados con `CORS_ORIGINS` (solo GET y POST; Streamlit no lo necesita). Un log JSON por petición, sin clave ni texto de la conversación, por la consola de Uvicorn para que Render lo recoja.
+- **Despliegue.** Docker en Render con PostgreSQL gestionado; `chroma/chroma.sqlite3` va versionado dentro de la imagen. `MADRIDRUMBO_GRAFO=falso` permite probar sin gastar API.
+- **Render gratuito.** Se duerme: la primera petición puede tardar cerca de 1 minuto, por eso el cliente de Streamlit espera hasta 90 s.
 
 ## 6. Rutas, BiciMAD y clima
 
