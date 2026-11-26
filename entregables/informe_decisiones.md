@@ -2,17 +2,44 @@
 
 > Grupo 2: Rubén Jiménez Gutiérrez, Guzmán López Barceló, José Manuel Gil Ruiz.
 
-## 0. Metodología SDD
+Se ha decidido dividir este documento en dos partes, incluyendo las decisiones relevantes de esta fase del proyecto y a la vez manteniendo las de la anterior, ya que se considera que al tratarse de un proyecto académico este se comprende mejor si se dispone de la imagen completa.
 
-Las funcionalidades de esta parte se desarrollaron con Spec-Driven Development, cada una con spec (requisitos en notación EARS), plan, tareas y validación.
+## Decisiones de la fase 3 - MLOps: API, datos y deployment
 
-## 1. Grafo: especialistas y momento HITL
+### 1. Desarrollo guiado por specs (SDD)
+
+La fase se trabajó con SDD: cada funcionalidad cuenta con una spec de requisitos EARS, un plan, tareas y validación.
+
+### 2. Persistencia, historial y empaquetado local
+
+- **PostgreSQL e historial.** SQLModel define los modelos y la conexión, y la API crea las tablas al arrancar. Cada turno finalizado guarda, bajo su `thread_id`, la pregunta y la respuesta final como mensajes `user` y `assistant`.
+- **Integridad del guardado.** La pregunta y la respuesta se confirman en una sola transacción: si falla la escritura de una, se revierten ambas. La API solo confirma el turno después de guardarlo; ante un fallo responde con un error 500 genérico y no vuelve a ejecutar el agente. Si PostgreSQL no está disponible al iniciar, la API no queda operativa.
+- **Memoria del agente.** Los turnos con planes pendientes no se guardan hasta que se cierran. PostgreSQL conserva el historial para consultarlo tras reiniciar la API, pero no restaura el estado del grafo ni sus planes pendientes.
+- **Imagen e índice.** La imagen Docker usa Python 3.11-slim y se validó localmente con PostgreSQL temporal. Se quitó `sentence-transformers` porque la API no lo utiliza y añadía dependencias pesadas. El índice `chroma/chroma.sqlite3` se versiona y se incluye en la imagen para disponer del RAG; las demás bases locales siguen ignoradas por Git.
+
+### 3. API, frontend y operación
+
+- **API y rutas.** FastAPI expone el agente como cliente HTTP fino: transmite preguntas y decisiones, sin incorporar la lógica del agente. Ofrece `GET /health`, `POST /ask`, `POST /approve` y `GET /threads/{thread_id}/messages`; `/health` es pública.
+- **Frontend Streamlit.** Es un cliente HTTP de la API y no ejecuta el grafo. Lee `API_BASE_URL` (por defecto `http://127.0.0.1:8000`) y `API_KEY` de la configuración del entorno (localmente, desde `.env`); la clave no se muestra en la interfaz ni se guarda en el repositorio. Permite comprobar el estado, cargar conversaciones y aprobar o rechazar planes. La autoaprobación empieza desactivada y, si se activa, solo aprueba un único plan; varios planes requieren selección manual. Si falla una petición, muestra un error comprensible y conserva el chat y el hilo activos.
+- **Tiempo y acceso.** `/ask` se ejecuta en un hilo aparte y tiene un máximo de 300 segundos por defecto (`ASK_TIMEOUT_SECONDS`); al superarlo, responde 504. Las rutas protegidas reciben `api_key` como parámetro: una clave ausente o incorrecta da 401 y, si el servidor no tiene `API_KEY` configurada, responde 503. El límite predeterminado es de 30 peticiones por clave en una ventana móvil de 60 segundos (`RATE_LIMIT_PER_MINUTE`).
+- **Configuración en Render.** `RATE_LIMIT_PER_MINUTE` y `ASK_TIMEOUT_SECONDS` son variables de entorno configurables en Render. Se pueden cambiar y aplicar con un redeployment, sin modificar código, para hacer pruebas y fijar después la configuración definitiva.
+- **CORS y logs.** `CORS_ORIGINS` configura los orígenes de navegador permitidos para GET y POST; Streamlit, al llamar desde Python, no depende de CORS. Cada petición protegida genera un registro JSON en la consola de Uvicorn, sin parámetros de consulta, claves ni texto conversacional, para que Render pueda recogerlo.
+
+### 4. Despliegue
+
+La API se despliega en Render con la imagen Docker y PostgreSQL gestionado; el índice Chroma viaja en la imagen. `MADRIDRUMBO_GRAFO=falso` activa el agente simulado para probar sin consumir APIs externas. El arranque en frío observado en el plan gratuito podía acercarse al minuto, por lo que el cliente HTTP de Streamlit espera hasta 90 segundos.
+
+---
+
+## Decisiones de fases anteriores - Grafo multiagente
+
+### 1. Grafo: especialistas y momento HITL
 
 Se decidió crear el grafo con un nodo supervisor, un nodo sintetizador de la respuesta e incluir los siguientes especialistas: auxiliar, rag, tarifas (multimodal) y rutas.
 
 **Momento HITL.** En el grafo la pausa ocurre **solo cuando hay un plan de ruta pendiente**.
 
-## 2. Tools
+### 2. Tools
 
 Todas viven en `src/tools/` y se ejecutan a través de `ejecutar_tool(nombre, args, traza)`, que aplica la allowlist `TOOLS_PERMITIDAS` y registra en la traza el nombre, los argumentos, el estado (ok, error o bloqueada) y un extracto del resultado.
 
@@ -24,34 +51,11 @@ Todas viven en `src/tools/` y se ejecutan a través de `ejecutar_tool(nombre, ar
 | `rag_ask` | RAG | Delega en `rag.responder.rag_ask`. |
 | `planificar_ruta` | API externa + RAG | Convierte origen y destino en coordenadas (Nominatim), pide el itinerario en transporte público (Google Routes) y consulta al RAG la zona y el precio. Si procede, añade una alternativa en BiciMAD (EMT) y el tiempo en el origen (Open-Meteo). Si falla la parte de BiciMAD o el clima, la ruta de transporte llega igual con un aviso. |
 
-## 2.1. Persistencia, historial y empaquetado local
-
-Estas decisiones documentan la persistencia, el historial y el empaquetado local:
-
-- **PostgreSQL como persistencia de la API.** Se eligió PostgreSQL para conservar
-  los turnos finalizados fuera de la memoria del proceso. SQLModel concentra los
-  modelos y la conexión, y la API crea las tablas que falten al arrancar.
-- **Historial por `thread_id`.** Cada turno confirmado guarda la pregunta de la
-  persona y la respuesta final como mensajes `user` y `assistant`. Los planes
-  pendientes permanecen en memoria y no se persisten hasta cerrar el turno.
-- **Separación entre memoria y base de datos.** PostgreSQL conserva el historial,
-  pero no rehidrata el estado interno del agente ni los planes pendientes tras un
-  reinicio.
-- **Docker para validación local.** Se creó una imagen Python 3.11-slim para
-  arrancar FastAPI y se validó su conexión con un PostgreSQL temporal en una red
-  Docker local. El despliegue en Render se documenta en `docs/guía-despliegue-render.md`.
-- **Dependencias mínimas.** Se eliminó `sentence-transformers` porque no se usa
-  en el código de la API y añadía dependencias pesadas innecesarias a la imagen.
-- **Índice Chroma versionado.** Se decidió conservar `chroma/chroma.sqlite3`
-  como artefacto generado del proyecto. Las reglas generales de Git siguen
-  ignorando otras bases de datos locales; solo este archivo se permite de forma
-  explícita.
-
-## 3. HITL: una aprobación y un rechazo
+### 3. HITL: una aprobación y un rechazo
 
 Se decidió que el planificador de rutas, tras la pausa HITL, si se producía rechazo recalculase una nueva ruta. Pendiente de implementación en un futuro evolutivo.
 
-## 4. Multimodal: imagen usada y resultado
+### 4. Multimodal: imagen usada y resultado
 
 **Imagen.** `assets/imagen_demo.jpg` (800 x 260 px): captura de la sección «Billetes de autobuses EMT» de [RedTransporte](https://www.redtransporte.com/madrid/precios-abonos.html), tomada el 2026-10-14. Contiene cuatro precios:
 
@@ -64,7 +68,7 @@ Se decidió que el planificador de rutas, tras la pausa HITL, si se producía re
 
 **Por qué esta imagen.** Se probó antes con el plano nocturno de la EMT, pero no contenía importes y no permitía la demo de cálculo. No se encontró ningún cartel de tarifas ya hecho en imagen (las webs oficiales publican las tarifas como texto), así que se hizo una captura propia. Aviso: es una captura de una web de terceros, no un cartel oficial, y esa página no indica licencia; se usa con fines educativos.
 
-## 5. Clientes CLI y Streamlit
+### 5. Clientes CLI y Streamlit
 
 La CLI es cliente directo del grafo y Streamlit lo es de la API (por HTTP, con clave), ambos con la pausa HITL, trazas visibles y nueva conversación.
 
@@ -75,33 +79,7 @@ La CLI es cliente directo del grafo y Streamlit lo es de la API (por HTTP, con c
 - **El mensaje se dibuja antes de llamar al grafo.** Streamlit solo pintaba la pregunta al terminar el turno porque el historial se dibuja antes de la llamada; ahora se dibuja la burbuja y un indicador de espera primero.
 - **Demo cambiada.** Se sustituyó el pedido de la imagen por una ruta porque la ruta es el único flujo que enseña el HITL. La imagen demo puede seleccionarse mediante su referencia literal, pero no genera una pausa HITL ni habilita subida de archivos.
 
-## 5.1. API REST, seguridad y despliegue
-
-La API (FastAPI) expone el mismo agente por HTTP como cliente fino: traslada la pregunta o la decisión al agente y devuelve su respuesta.
-
-**Decisiones.**
-- **Rutas.** `GET /health` (público), `POST /ask`, `POST /approve` (aprobar o rechazar un plan HITL) y `GET /threads/{thread_id}/messages` (historial).
-- **Límite de tiempo.** `/ask` ejecuta el agente en un hilo aparte y responde 504 si supera 300 s.
-- **Seguridad.** Clave en el parámetro `api_key`: incorrecta da 401; sin clave configurada en el servidor da 503 (no queda abierta); más de 30 peticiones por minuto da 429.
-- **CORS y logs.** Orígenes autorizados con `CORS_ORIGINS` (solo GET y POST; Streamlit no lo necesita). Un log JSON por petición, sin clave ni texto de la conversación, por la consola de Uvicorn para que Render lo recoja.
-- **Despliegue.** Docker en Render con PostgreSQL gestionado; `chroma/chroma.sqlite3` va versionado dentro de la imagen. `MADRIDRUMBO_GRAFO=falso` permite probar sin gastar API.
-- **Render gratuito.** Se duerme: la primera petición puede tardar cerca de 1 minuto, por eso el cliente de Streamlit espera hasta 90 s.
-
----
-
-(NOTAS) 
-- Incluido en el front una sección de consulta de conversación, comprobar el estado de la API y selección de aprovación automático de un único plan.
-
-
-`RATE_LIMIT_PER_MINUTE` (límite de peticiones por minuto, 30 por defecto) y `ASK_TIMEOUT_SECONDS` (segundos máximos de `/ask`, 300 por defecto) son variables de entorno.
-
-ogs. Se configuraron para salir por la consola de Uvicorn (logger `uvicorn.error`) y así aparecen en los Logs de Render. Falta ampliar: por qué no bastaba el logger anterior y cómo se comprobó en Render. -->
-
-Chroma en el repositorio. Se añadió `chroma/chroma.sqlite3` al repositorio y a la imagen de Docker para poder desplegar la API con el RAG real, ajustando `.gitignore` y `.dockerignore`. Falta ampliar: tamaño (unos 64 MB), por qué solo ese archivo y fijar la versión de `chromadb` con la que se creó el índice.
-
----
-
-## 6. Rutas, BiciMAD y clima
+### 6. Rutas, BiciMAD y clima
 
 **Por qué decide Python.** La bici se ofrece solo si no se pide hora, la distancia en línea recta entre origen y destino está entre 1 y 6 km, la estación de origen tiene bicis, la de destino huecos libres, ambas están a 500 m o menos y son distintas. Un tiempo no apto (lluvia, llovizna, nieve, tormenta, menos de 5 °C, más de 32 °C o viento de más de 30 km/h) evita ofrecerla. Los umbrales están en `config.py`. El clima solo se consulta si la bici es posible.
 
@@ -109,7 +87,7 @@ Chroma en el repositorio. Se añadió `chroma/chroma.sqlite3` al repositorio y a
 
 **Bloques literales.** Zona, precio, clima, bici y opción usada se añaden tal cual a la respuesta, porque el LLM los omitía o duplicaba (sección 8).
 
-## 7. Otras decisiones que impactan en el proyecto
+### 7. Otras decisiones que impactan en el proyecto
 
 Esta sección completa las decisiones que afectan a la arquitectura y al comportamiento global del sistema, más allá de las funcionalidades desarrolladas en las secciones anteriores.
 
@@ -123,7 +101,7 @@ Esta sección completa las decisiones que afectan a la arquitectura y al comport
 
 ---
 
-## 8. Fallos conocidos y siguientes pasos
+### 8. Fallos conocidos y siguientes pasos
 
 1. **`hora_actual` no conoce los festivos.** Solo distingue laborable, sábado y domingo, así que un festivo se trata como un día laborable y el especialista podría dar un horario equivocado. *Siguiente paso:* incorporar un calendario de festivos como dato (CSV) o consultarlo al RAG.
 2. **El bucle depende de que el LLM cumpla el protocolo JSON** (`{"tool","args"}` o `{"final"}`). Si no lo cumple, el especialista devuelve una nota de error controlada, pero la pregunta queda sin responder. *Siguiente paso:* pasar a `bind_tools` de LangChain o validar y reintentar una vez antes de rendirse; en MLOps, medir la tasa de respuestas no interpretables.
